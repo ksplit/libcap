@@ -747,7 +747,7 @@ int __lcd_cap_grant(struct cspace *cspacesrc, cptr_t c_src,
 		/*
 		 * Look up source
 		 */
-		ret = __lcd_cnode_get(cspacesrc, c_src, &cnodesrc);
+		ret = __lcd_cnode_get(cspacesrc, c_src, false, &cnodesrc);
 		if (ret) {
 			LCD_ERR("couldn't get source cnode");
 			goto fail1;
