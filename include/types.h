@@ -9,7 +9,6 @@
 #define LCD_DOMAINS_TYPES_H
 
 #include <linux/kernel.h>
-#include <asm/page.h>
 
 /* CPTRs -------------------------------------------------- */
 
@@ -233,6 +232,9 @@ struct lcd_boot_info_for_page {
  * Hack for now to make boot easier, used in liblcd/lcd/cap.c for cptr
  * cache.
  */
+#define DIV_ROUND_UP(n,d) (((n) + (d) - 1) / (d))
+#define BITS_PER_BYTE           8
+#define BITS_TO_LONGS(nr)       DIV_ROUND_UP(nr, BITS_PER_BYTE * sizeof(long))
 
 #define LCD_BMAP0_SIZE (1 << (LCD_CPTR_SLOT_BITS + 0 * LCD_CPTR_FANOUT_BITS))
 #define LCD_BMAP1_SIZE (1 << (LCD_CPTR_SLOT_BITS + 1 * LCD_CPTR_FANOUT_BITS))

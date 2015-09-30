@@ -12,8 +12,6 @@
 #ifndef LCD_DOMAINS_KLIBLCD_H
 #define LCD_DOMAINS_KLIBLCD_H
 
-#include <lcd-domains/types.h>
-#include <lcd-domains/utcb.h>
 #include <linux/sched.h>
 
 /* KLIBLCD INTERNALS -------------------------------------------------- */

@@ -1,5 +1,5 @@
-#include <lcd-domains/types.h>
-#include "../internal.h"
+#include "../include/types.h"
+#include "../include/internal.h"
 
 /*
  * Regular grant.
@@ -14,20 +14,23 @@
  *
  *  1. Resolve process A to cspace A
  *  2. Resolve process B to cspace B
- *  3. Invoke grant function in the library (libcap):
+ *  3. Invoke grant function in the library (libcap).
+ *  
+ *  This entire functionality has te be tested yet!!
+ *  I am testing it and will add the testing results.
  */
 static int libcap_grant_capability(void *s_cspace, void *d_cspace,
-		unsigned long s_cptr, unsigned long d_cptr)
+		cptr_t s_cptr, cptr_t d_cptr)
 {
 	int ret;
 	struct cspace *src_cspace = (struct cspace *) s_cspace;
 	struct cspace *dest_cspace = (struct cspace *) d_cspace;
-	cptr_c src_cptr = (cptr_c) s_cptr;
-	cptr_c dest_cptr = (cptr_c) d_cptr;
+	cptr_t src_cptr = s_cptr;
+	cptr_t dest_cptr = d_cptr;
 
-	if (cptr_is_null(c_src) || cptr_is_null(c_dst)) {
+	if (cptr_is_null(src_cptr) || cptr_is_null(dest_cptr)) {
 		LCD_ERR("trying to grant with a null cptr");
-		return -EINVAL;
+		return -1;
 	}
 
 

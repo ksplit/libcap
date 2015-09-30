@@ -9,10 +9,17 @@
  *
  * See Documentation/lcd-domains/cap.txt for extensive info.
  */
-#include <linux/slab.h>
-#include <linux/delay.h>
-#include <lcd-domains/types.h>
-#include "../internal.h"
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+#include "../include/types.h"
+#include "../include/internal.h"
+#include "../include/list.h"
+#include <stdbool.h>
+#include <stdarg.h>
+#include <assert.h>
+#define EINVAL 1
+#define EIDRM 2
 
 static inline struct lcd * cspace_to_lcd(struct cspace *cspace)
 {
@@ -22,8 +29,13 @@ static inline struct lcd * cspace_to_lcd(struct cspace *cspace)
 /* CDT CACHE -------------------------------------------------- */
 
 struct cdt_cache_t {
+#ifdef KERNEL
 	struct mutex lock;
 	struct kmem_cache *cdt_root_cache;
+#else
+	pthread_mutex_t lock;
+	void *cdt_root_cache;
+#endif
 };
 
 static struct cdt_cache_t cdt_cache;
@@ -41,17 +53,28 @@ struct cdt_root_node * get_cdt_root(void)
 {
 	int ret;
 	struct cdt_root_node *cdt_node = NULL;
+#ifdef KERNEL
 	ret = mutex_lock_interruptible(&cdt_cache.lock);
+#else
+	ret = pthread_mutex_lock(&cdt_cache.lock);
+#endif
 	if (ret) {
 		LCD_ERR("interrupted");
 		goto out;
 	}
-
+#ifdef KERNEL
 	cdt_node = kmem_cache_alloc(cdt_cache.cdt_root_cache, 0);
+#else
+	cdt_node = (struct cdt_root_node*)malloc(1 * sizeof(struct cdt_root_node));
+#endif
 	cdt_node->state = ALLOCATION_VALID;
+#ifdef KERNEL
 	mutex_init(&cdt_node->lock);
-
 	mutex_unlock(&cdt_cache.lock);
+#else
+	pthread_mutex_init(&cdt_node->lock, NULL);
+	pthread_mutex_unlock(&cdt_cache.lock);
+#endif
 
 out:	
 	return cdt_node;
@@ -60,16 +83,25 @@ out:
 void free_cdt_root(struct cdt_root_node *cdt_node)
 {
 	int ret;
+#ifdef KERNEL
 	ret = mutex_lock_interruptible(&cdt_cache.lock);
+#else
+	pthread_mutex_lock(&cdt_cache.lock);
+#endif
 	if (ret) {
 		LCD_ERR("interrupted");
 		goto out;
 	}
 
 	cdt_node->state = ALLOCATION_REMOVED;	
+#ifdef KERNEL
 	kmem_cache_free(cdt_cache.cdt_root_cache, cdt_node);
 
 	mutex_unlock(&cdt_cache.lock);
+#else
+	free(cdt_node);
+	pthread_mutex_lock(&cdt_cache.lock);
+#endif
 
 out:
 	return;
@@ -85,7 +117,12 @@ static int make_empty_cnode_table(struct cspace *cspace, uint8_t level,
 	/*
 	 * Allocate
 	 */
+#ifdef KERNEL
 	new = kmem_cache_zalloc(cspace->cnode_table_cache, 0);
+#else
+	new = malloc(1 * sizeof (*new));
+#endif
+
 	if (!new)
 		goto fail1;
 	/*
@@ -97,7 +134,11 @@ static int make_empty_cnode_table(struct cspace *cspace, uint8_t level,
 		new->cnode[i].type = LCD_CAP_TYPE_FREE;
 		INIT_LIST_HEAD(&new->cnode[i].children);
 		INIT_LIST_HEAD(&new->cnode[i].siblings);
+#ifdef KERNEL
 		mutex_init(&new->cnode[i].lock);
+#else
+		pthread_mutex_init(&new->cnode[i].lock, NULL);
+#endif
 	}
 	
 	new->table_level = level;
@@ -114,7 +155,8 @@ static int make_empty_cnode_table(struct cspace *cspace, uint8_t level,
 
 	return 0;
 fail1:
-	return -ENOMEM;
+//	return -ENOMEM;
+	return -1;
 }
 
 /**
@@ -124,8 +166,14 @@ int __lcd_cap_init_cspace(struct cspace *cspace)
 {
 	int ret;
 	char name[32];
-
+#ifdef KERNEL
 	mutex_init(&cspace->lock);
+#else
+	if (pthread_mutex_init(&cspace->lock, NULL) != 0) {
+		printf("Mutex initialization failed!!!\n");
+		exit(-1);
+	}
+#endif
 
 	/*
 	 * Initialize the cnode table cache. We can't use the
@@ -136,15 +184,20 @@ int __lcd_cap_init_cspace(struct cspace *cspace)
 	 * it complains when it tries to remove slabs with the same name.)
 	 */
 	snprintf(name, 32, "cspace%llu", cspace_id);
+#ifdef KERNEL
 	cspace->cnode_table_cache = kmem_cache_create(
 		name,
 		sizeof(struct cnode_table),
 		__alignof__(struct cnode_table),
 		0,
 		NULL);
+#else
+	cspace->cnode_table_cache = malloc(1 * sizeof(struct cnode_table));
+#endif
 	if(!cspace->cnode_table_cache) {
 		LCD_ERR("failed to allocate cnode_table slab");
-		return -ENOMEM;
+//		return -ENOMEM;
+		return -1;
 	}
 
 	/*
@@ -232,7 +285,11 @@ static int find_cnode(struct cspace *cspace, struct cnode_table *old,
 		 * Initialize it.
 		 */
 		*cnode = &old->cnode[level_id];
+#ifdef KERNEL
 		mutex_init(&(*cnode)->lock);
+#else
+		pthread_mutex_init(&(*cnode)->lock, NULL);
+#endif
 		(*cnode)->cspace = cspace;
 		
 		return 1; /* signal we found the slot and are done */
@@ -315,6 +372,7 @@ static int __lcd_cnode_lookup(struct cspace *cspace, cptr_t c, bool alloc,
 		 * should keep going, and < 0 on error.
 		 */
 		ret = walk_one_level(cspace, c, alloc, old, &new, cnode);
+		printf("ret=%d __lcd_cnode_lookup\n", ret);
 		old = new;
 	} while (!ret);
 
@@ -324,16 +382,19 @@ static int __lcd_cnode_lookup(struct cspace *cspace, cptr_t c, bool alloc,
 	return (ret < 0 ? ret : 0);
 }
 
-static int __lcd_cnode_get__(struct cspace *cspace, cptr_t c, 
+int __lcd_cnode_get__(struct cspace *cspace, cptr_t c, 
 			bool alloc, struct cnode **cnode)
 {
 	int ret;
-
+	
 	/*
 	 * Look up and lock cnode
 	 */
-
+#ifdef KERNEL
 	ret = mutex_lock_interruptible(&cspace->lock);
+#else
+	ret = pthread_mutex_lock(&cspace->lock);
+#endif
 	if (ret) {
 		LCD_ERR("interrupted");
 		goto fail1;
@@ -347,22 +408,36 @@ static int __lcd_cnode_get__(struct cspace *cspace, cptr_t c,
 	}
 	ret = __lcd_cnode_lookup(cspace, c, alloc, cnode);
 	if(ret) {
-		ret = -ENOMEM;
+		//ret = -ENOMEM;
+		ret = -1;
 		goto fail2;
 	}
-	
+
+#ifdef KERNEL	
 	ret = mutex_lock_interruptible(&(*cnode)->lock);
+#else
+	ret = pthread_mutex_lock(&(*cnode)->lock);
+#endif
+
 	if (ret) {
 		LCD_ERR("interrupted");
 		goto fail2;
 	}
 
+#ifdef KERNEL
 	mutex_unlock(&cspace->lock);
+#else
+	pthread_mutex_unlock(&cspace->lock);
+#endif
 
 	return 0;
 
 fail2:
+#ifdef KERNEL
 	mutex_unlock(&cspace->lock);
+#else
+	pthread_mutex_unlock(&cspace->lock);
+#endif
 fail1:
 	return ret;
 }
@@ -374,7 +449,11 @@ int __lcd_cnode_get(struct cspace *cspace, cptr_t c, struct cnode **cnode)
 
 void __lcd_cnode_put(struct cnode *cnode)
 {
+#ifdef KERNEL
 	mutex_unlock(&cnode->lock);
+#else
+	pthread_mutex_unlock(&cnode->lock);
+#endif
 }
 
 int __lcd_cap_insert(struct cspace *cspace, cptr_t c, void *object, 
@@ -414,27 +493,29 @@ int __lcd_cap_insert(struct cspace *cspace, cptr_t c, void *object,
 	return 0; 
 }
 
+/* Working on this. For now this will give some issues. */
 static void free_cnode_object(struct cspace *cspace, struct cnode *cnode)
 {
-	struct lcd *lcd;
+	printf("Inside function free_cnode_object\n");
+/*	struct lcd *lcd;
 	switch (cnode->type) {
 	case LCD_CAP_TYPE_SYNC_EP:
 		/*
 		 * No lcd's should be in endpoint's queues. Safe to delete it.
 		 */
-		__lcd_sync_endpoint_destroy(cnode->object);
+/*		__lcd_sync_endpoint_destroy(cnode->object);
 		break;
 	case LCD_CAP_TYPE_PAGE:
 		/*
 		 * No lcd's should have page mapped. Safe to delete it.
 		 */
-		__lcd_page_destroy(cnode->object);
+/*		__lcd_page_destroy(cnode->object);
 		break;
 	case LCD_CAP_TYPE_KPAGE:
 		/*
 		 * No lcd's should have page mapped
 		 */
-		__lcd_kpage_destroy(cnode->object);
+/*		__lcd_kpage_destroy(cnode->object);
 		break;
 	case LCD_CAP_TYPE_LCD:
 		/*
@@ -445,11 +526,12 @@ static void free_cnode_object(struct cspace *cspace, struct cnode *cnode)
 		 * so that the lcd can tear down its own cspace. This call
 		 * will not return (the kthread will stop and exit).
 		 */
-		lcd = cnode->object; /* being paranoid to avoid NULL deref in
+/*		lcd = cnode->object; /* being paranoid to avoid NULL deref in
 				      * case the calling lcd is the same as the
 				      * lcd to be deleted
 				      */
-		if (unlikely(cspace_to_lcd(cspace) == current->lcd)) {
+		//if (unlikely(cspace_to_lcd(cspace) == current->lcd)) {
+/*		if (unlikely(cspace_to_lcd(cspace) == lcd)) {
 			cnode->type = LCD_CAP_TYPE_FREE;
 			__lcd_cnode_put(cnode);
 		}
@@ -457,14 +539,18 @@ static void free_cnode_object(struct cspace *cspace, struct cnode *cnode)
 		break;
 	default:
 		/* we don't expect to see invalid, free, or cnode types here */
-		LCD_ERR("unexpected cnode type %d", cnode->type);
-		BUG();
+/*		LCD_ERR("unexpected cnode type %d", cnode->type);
+		//BUG();
+		printf("This is BUG\n");
 		break;
-	}
+	}*/
 }
 
+/* Kept the dummy, Will be removing subsequently */
 static void update_microkernel(struct cspace *cspace, struct cnode *cnode)
 {
+	printf("In function update_microkernel");
+/*
 	switch (cnode->type) {
 	case LCD_CAP_TYPE_SYNC_EP:
 		__lcd_sync_endpoint_check(cspace_to_lcd(cspace), 
@@ -482,11 +568,12 @@ static void update_microkernel(struct cspace *cspace, struct cnode *cnode)
 		__lcd_check(cspace_to_lcd(cspace), cnode->object);
 		break;
 	default:
-		/* we don't expect to see invalid, free, or cnode types here */
+		 //we don't expect to see invalid, free, or cnode types here 
 		LCD_ERR("unexpected cnode type %d", cnode->type);
 		BUG();
 		break;
 	}
+*/
 }
 
 /**
@@ -540,10 +627,15 @@ static int try_delete_cnode(struct cspace *cspace, struct cnode *cnode)
 {
 	int last_node;
 	struct cdt_root_node *cdt_node;
+
 	/*
 	 * Try to lock the cdt
 	 */
+#ifdef KERNEL
 	if (!mutex_trylock(&cnode->cdt_root->lock)) {
+#else
+	if (!pthread_mutex_lock(&cnode->cdt_root->lock)) {
+#endif
 		/*
 		 * Tell caller to retry
 		 */
@@ -562,7 +654,11 @@ static int try_delete_cnode(struct cspace *cspace, struct cnode *cnode)
 	/*
 	 * Unlock cdt
 	 */
+#ifdef KERNEL
 	mutex_unlock(&cdt_node->lock);
+#else
+	pthread_mutex_unlock(&cdt_node->lock);
+#endif
 
 	/* Order of what follows is important */
 
@@ -597,6 +693,7 @@ static int try_delete_cnode(struct cspace *cspace, struct cnode *cnode)
 	 * are free. For now, they just hang around and will be freed when
 	 * the whole cspace is torn down.
 	 */
+
 	cnode->type = LCD_CAP_TYPE_FREE;
 	cnode->object = NULL;
 	cnode->cdt_root = NULL;
@@ -634,6 +731,7 @@ void __lcd_cap_delete(struct cspace *cspace, cptr_t c)
 			LCD_ERR("error getting cnode");
 			goto out1;
 		}
+		printf("After __lcd_cnode_get \n\n");
 
 		/*
 		 * If the cnode is already marked as free, just return.
@@ -672,12 +770,13 @@ void __lcd_cap_delete(struct cspace *cspace, cptr_t c)
 			 * Someone else is using the cdt; wait 1 ms for him
 			 * to finish.
 			 */
-			msleep(1);
+			//msleep(1);
+			sleep(1);
 		}
 
 	} while (!done);
 		
-
+	printf("After Delete\n");
 	return;
 
 out2:
@@ -693,12 +792,16 @@ static int try_grant(struct cspace *cspacedst, struct cnode *cnodesrc,
 	 * Try to lock the cdt containing source cnode (dest cnode should
 	 * not be in a cdt)
 	 */
+#ifdef KERNEL
 	if (!mutex_trylock(&cnodesrc->cdt_root->lock)) {
+#else
+	if (!pthread_mutex_lock(&cnodesrc->cdt_root->lock)) {
 		/*
 		 * Tell caller to retry
 		 */
 		return 0;
 	}
+#endif
 
 	/*
 	 * Add dest cnode to source's children in cdt
@@ -708,7 +811,11 @@ static int try_grant(struct cspace *cspacedst, struct cnode *cnodesrc,
 	/*
 	 * Unlock cdt
 	 */
+#ifdef KERNEL
 	mutex_unlock(&cnodesrc->cdt_root->lock);
+#else
+	pthread_mutex_unlock(&cnodesrc->cdt_root->lock);
+#endif
 
 	/*
 	 * Set dest cnode's fields with source's
@@ -802,7 +909,8 @@ int __lcd_cap_grant(struct cspace *cspacesrc, cptr_t c_src,
 			 * Someone is trying to use the cdt; wait 1 ms for
 			 * him to finish.
 			 */
-			msleep(1);
+			//msleep(1);
+			sleep(1);
 		}
 
 	} while (!done);
@@ -876,7 +984,11 @@ static int try_revoke(struct cspace *cspace, struct cnode *cnode)
 	/*
 	 * Try to lock the cdt containing cnode
 	 */
+#ifdef KERNEL
 	if (!mutex_trylock(&cnode->cdt_root->lock)) {
+#else
+	if (!pthread_mutex_lock(&cnode->cdt_root->lock)) {
+#endif
 		/*
 		 * Tell caller to retry
 		 */
@@ -917,7 +1029,11 @@ static int try_revoke(struct cspace *cspace, struct cnode *cnode)
 		 * Lock child. (If someone has the lock but it is trying to
 		 * lock the cdt, they will relinquish.)
 		 */
+#ifdef KERNEL
 		ret = mutex_lock_interruptible(&child->lock);
+#else
+		ret = pthread_mutex_lock(&child->lock);
+#endif
 		if (ret) {
 			LCD_ERR("interrupted");
 			goto fail1;
@@ -926,7 +1042,8 @@ static int try_revoke(struct cspace *cspace, struct cnode *cnode)
 		 * If the child is in the cdt, its type should match cnode's
 		 * type (it shouldn't be invalid, free, or a cnode).
 		 */
-		BUG_ON(child->type != cnode->type);
+		//BUG_ON(child->type != cnode->type);
+		assert(child->type != cnode->type);
 		/*
 		 * Delete from cdt. 
 		 */
@@ -945,13 +1062,21 @@ static int try_revoke(struct cspace *cspace, struct cnode *cnode)
 		/*
 		 * Unlock child
 		 */
+#ifdef KERNEL
 		mutex_unlock(&child->lock);
+#else
+		pthread_mutex_unlock(&child->lock);
+#endif
 	}
 
 	/*
 	 * Unlock cdt
 	 */
+#ifdef KERNEL
 	mutex_unlock(&cnode->cdt_root->lock);
+#else
+	pthread_mutex_unlock(&cnode->cdt_root->lock);
+#endif
 	/*
 	 * Signal we are done
 	 */
@@ -1011,7 +1136,8 @@ int __lcd_cap_revoke(struct cspace *cspace, cptr_t c)
 			 * Someone is using the cdt containing cnode; wait
 			 * 1 ms for him to finish, and try again.
 			 */
-			msleep(1);
+			//msleep(1);
+			sleep(1);
 		}
 
 	} while (!ret);
@@ -1033,7 +1159,11 @@ static void cnode_tear_down(struct cnode *cnode, struct cspace *cspace)
 		/*
 		 * Lock cnode
 		 */
+#ifdef KERNEL
 		ret = mutex_lock_interruptible(&cnode->lock);
+#else
+		ret = pthread_mutex_lock(&cnode->lock);
+#endif
 		if (ret) {
 			LCD_ERR("interrupted, skipping this cnode");
 			goto out1;
@@ -1051,14 +1181,19 @@ static void cnode_tear_down(struct cnode *cnode, struct cspace *cspace)
 		/*
 		 * Release cnode
 		 */
+#ifdef KERNEL
 		mutex_unlock(&cnode->lock);
+#else
+		pthread_mutex_unlock(&cnode->lock);
+#endif
 
 		if (!done) {
 			/*
 			 * Someone else is using the cdt; wait 1 ms for him
 			 * to finish.
 			 */
-			msleep(1);
+			//msleep(1);
+			sleep(1);
 		}
 
 	} while (!done);
@@ -1066,7 +1201,11 @@ static void cnode_tear_down(struct cnode *cnode, struct cspace *cspace)
 	return;
 
 out2:
+#ifdef KERNEL
 	mutex_unlock(&cnode->lock);
+#else
+	pthread_mutex_unlock(&cnode->lock);
+#endif
 out1:
 	return;
 }
@@ -1117,13 +1256,17 @@ static void cspace_tear_down(struct cspace *cspace)
 		 * Delete it from list and free it
 		 */
 		list_del(&t->table_list);
+#ifdef KERNEL
 		kmem_cache_free(cspace->cnode_table_cache, t);
+#else
+		free(t);
+#endif
 	}
 
 	/*
 	 * Get rid of the table cache
 	 */
-	kmem_cache_destroy(cspace->cnode_table_cache);
+	free(cspace->cnode_table_cache);
 
 	return;
 }
@@ -1136,7 +1279,11 @@ void __lcd_cap_destroy_cspace(struct cspace *cspace)
 	 * any insert's, delete's, revoke's, etc. from trying to traverse
 	 * the cnode table tree.
 	 */
+#ifdef KERNEL
 	ret = mutex_lock_interruptible(&cspace->lock);
+#else
+	ret = pthread_mutex_lock(&cspace->lock);
+#endif
 	if (ret) {
 		LCD_ERR("interrupted");
 		goto fail1;
@@ -1157,7 +1304,11 @@ void __lcd_cap_destroy_cspace(struct cspace *cspace)
 	/*
 	 * Unlock cspace
 	 */
+#ifdef KERNEL
 	mutex_unlock(&cspace->lock);
+#else
+	pthread_mutex_unlock(&cspace->lock);
+#endif
 	/*
 	 * Start tearing it down
 	 */
@@ -1166,7 +1317,11 @@ void __lcd_cap_destroy_cspace(struct cspace *cspace)
 	return;
 
 fail2:
+#ifdef KERNEL
 	mutex_unlock(&cspace->lock);
+#else
+	pthread_mutex_unlock(&cspace->lock);
+#endif
 fail1:
 	return;
 }
@@ -1178,11 +1333,17 @@ int __lcd_cap_init(void)
 	/*
 	 * Initialize cdt cache
 	 */
+#ifdef KERNEL
 	mutex_init(&cdt_cache.lock);
 	cdt_cache.cdt_root_cache = KMEM_CACHE(cdt_root_node, 0);
+#else
+	pthread_mutex_init(&cdt_cache.lock, NULL);
+	cdt_cache.cdt_root_cache = malloc(1 * sizeof(void *));
+#endif
 	if(!cdt_cache.cdt_root_cache) {
 		LCD_ERR("failed to initialize cdt_root_node allocator");
-		return -ENOMEM;
+		//return -ENOMEM;
+		return -1;
 	}
 
 	return 0;
@@ -1190,5 +1351,6 @@ int __lcd_cap_init(void)
 
 void __lcd_cap_exit(void)
 {
-	kmem_cache_destroy(cdt_cache.cdt_root_cache);
+	printf("Inside __lcd_cap_exit\n");
+	//kmem_cache_destroy(cdt_cache.cdt_root_cache);
 }

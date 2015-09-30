@@ -1,16 +1,20 @@
 #ifndef LCD_DOMAINS_INTERNAL_H
 #define LCD_DOMAINS_INTERNAL_H
+#include <stdint.h>
+#include "types.h"
+#include "list.h"
+#include <pthread.h>
+#include <stdlib.h>
+#include <stdarg.h>
 
-#include <linux/module.h>
-#include <linux/sched.h>
-#include <linux/types.h>
-#include <linux/spinlock.h>
+/* There is a lot of LCD code which is not required.
+ * I will be removing the unnecessary stuff.
+ */
 
-#include <asm/lcd-domains/lcd-domains.h>
-#include <lcd-domains/types.h>
-#include <lcd-domains/utcb.h>
-#include <lcd-domains/syscall.h>
-
+typedef uint64_t u64;
+typedef struct {
+	int counter;
+} atomic_t;
 /* --------------------------------------------------
  * DEBUG
  * --------------------------------------------------
@@ -22,27 +26,51 @@
 static inline void __lcd_err(char *file, int lineno, char *fmt, ...)
 {
 	va_list args;
+#ifdef KERNEL
 	printk(KERN_ERR "lcd-domains: %s:%d: error: ", file, lineno);
+#else
+	printf("lcd-domains: %s:%d: error: ", file, lineno);
+#endif
 	va_start(args, fmt);
+#ifdef KERNEL
 	vprintk(fmt, args);
+#else
+	printf(fmt, args);
+#endif
 	va_end(args);
 }
 #define LCD_MSG(msg...) __lcd_msg(__FILE__, __LINE__, msg)
 static inline void __lcd_msg(char *file, int lineno, char *fmt, ...)
 {
 	va_list args;
+#ifdef KERNEL
 	printk(KERN_ERR "lcd-domains: %s:%d: note: ", file, lineno);
+#else
+	printf("lcd-domains: %s:%d: note: ", file, lineno);
+#endif
 	va_start(args, fmt);
+#ifdef KERNEL
 	vprintk(fmt, args);
+#else
+	printf(fmt, args);
+#endif
 	va_end(args);
 }
 #define LCD_WARN(msg...) __lcd_warn(__FILE__, __LINE__, msg)
 static inline void __lcd_warn(char *file, int lineno, char *fmt, ...)
 {
 	va_list args;
+#ifdef KERNEL
 	printk(KERN_ERR "lcd-domains: %s:%d: warning: ", file, lineno);
+#else
+	printf("lcd-domains: %s:%d: warning: ", file, lineno);
+#endif
 	va_start(args, fmt);
+#ifdef KERNEL
 	vprintk(fmt, args);
+#else
+	printf(fmt, args);
+#endif
 	va_end(args);
 }
 
@@ -58,9 +86,17 @@ static inline void __lcd_warn(char *file, int lineno, char *fmt, ...)
 static inline void __lcd_debug(char *file, int lineno, char *fmt, ...)
 {
 	va_list args;
+#ifdef KERNEL
 	printk(KERN_ERR "lcd-domains: %s:%d: debug: ", file, lineno);
+#else
+	printf("lcd-domains: %s:%d: debug: ", file, lineno);
+#endif
 	va_start(args, fmt);
+#ifdef KERNEL
 	vprintk(fmt, args);
+#else
+	printf(fmt, args);
+#endif
 	va_end(args);
 }
 
@@ -101,14 +137,22 @@ enum allocation_state {
 
 struct cnode;
 struct cdt_root_node {
+#ifdef KERNEL
 	struct mutex lock;
+#else
+	pthread_mutex_t lock;
+#endif
 	struct cnode *cnode;
 	enum allocation_state state;
 };
 
 struct cspace;
 struct cnode {
+#ifdef KERNEL
 	struct mutex lock;
+#else
+	pthread_mutex_t lock;
+#endif
 	/*
 	 * cnode data
 	 */
@@ -142,10 +186,18 @@ struct cnode_table {
 };
 
 struct cspace {
+#ifdef KERNEL
 	struct mutex lock;
+#else
+	pthread_mutex_t lock;
+#endif
 	enum allocation_state state;
 	struct cnode_table *cnode_table;
+#ifdef KERNEL
 	struct kmem_cache *cnode_table_cache;
+#else
+	void * cnode_table_cache;
+#endif
 	struct list_head table_list;
 };
 
@@ -244,7 +296,11 @@ struct lcd {
 	 *
 	 * (Pray for me that I will not get deadlocks)
 	 */
+#ifdef KERNEL
 	struct mutex lock;
+#else
+	pthread_mutex_t lock;
+#endif
 	/*
 	 * Status
 	 */
@@ -338,7 +394,11 @@ struct lcd {
 struct lcd_sync_endpoint {
 	struct list_head senders;
 	struct list_head receivers;
+#ifdef KERNEL
         struct mutex lock;
+#else
+	pthread_mutex_t lock;
+#endif
 };
 
 /* KLCD STUFF -------------------------------------------------- */
@@ -384,9 +444,13 @@ int __lcd_reply(struct lcd *caller);
  * destroy routine below.
  */
 void __lcd_sync_endpoint_check(struct lcd *lcd, struct lcd_sync_endpoint *e);
-void __lcd_page_check(struct lcd *lcd, struct page *p, int is_mapped, 
+/*void __lcd_page_check(struct lcd *lcd, struct page *p, int is_mapped, 
+		gpa_t where_mapped);*/
+void __lcd_page_check(struct lcd *lcd, void *p, int is_mapped, 
 		gpa_t where_mapped);
-void __lcd_kpage_check(struct lcd *lcd, struct page *p, int is_mapped, 
+/*void __lcd_kpage_check(struct lcd *lcd, struct page *p, int is_mapped, 
+		gpa_t where_mapped);*/
+void __lcd_kpage_check(struct lcd *lcd, void *p, int is_mapped, 
 		gpa_t where_mapped);
 void __lcd_check(struct lcd *owning_lcd, struct lcd *owned_lcd);
 
@@ -395,8 +459,10 @@ void __lcd_check(struct lcd *owning_lcd, struct lcd *owned_lcd);
  * away.
  */
 void __lcd_sync_endpoint_destroy(struct lcd_sync_endpoint *e);
-void __lcd_page_destroy(struct page *p);
-void __lcd_kpage_destroy(struct page *p);
+//void __lcd_page_destroy(struct page *p);
+void __lcd_page_destroy(void *p);
+//void __lcd_kpage_destroy(struct page *p);
+void __lcd_kpage_destroy(void *p);
 void __lcd_destroy(struct lcd *owned_lcd);
 
 void __lcd_destroy__(struct lcd *owned_lcd);
