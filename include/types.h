@@ -184,10 +184,10 @@ static inline hpa_t va2hpa(void *va)
 {
 	return (hpa_t){ __pa(va) };
 }
-static inline void * hpa2va(hpa_t hpa)
+/*static inline void * hpa2va(hpa_t hpa)
 {
 	return __va(hpa_val(hpa));
-}
+}*/
 static inline hva_t hpa2hva(hpa_t hpa)
 {
 	return (hva_t){ (unsigned long)__va(hpa.hpa) };

@@ -100,7 +100,7 @@ void free_cdt_root(struct cdt_root_node *cdt_node)
 	mutex_unlock(&cdt_cache.lock);
 #else
 	free(cdt_node);
-	pthread_mutex_lock(&cdt_cache.lock);
+	pthread_mutex_unlock(&cdt_cache.lock);
 #endif
 
 out:
@@ -183,7 +183,7 @@ int __lcd_cap_init_cspace(struct cspace *cspace)
 	 * for multiple lcd's. This is because slabs are tied to sysfs, and
 	 * it complains when it tries to remove slabs with the same name.)
 	 */
-	snprintf(name, 32, "cspace%llu", cspace_id);
+	snprintf(name, 32, "cspace%llu", (long long) cspace_id);
 #ifdef KERNEL
 	cspace->cnode_table_cache = kmem_cache_create(
 		name,
@@ -731,7 +731,6 @@ void __lcd_cap_delete(struct cspace *cspace, cptr_t c)
 			LCD_ERR("error getting cnode");
 			goto out1;
 		}
-		printf("After __lcd_cnode_get \n\n");
 
 		/*
 		 * If the cnode is already marked as free, just return.
@@ -776,7 +775,6 @@ void __lcd_cap_delete(struct cspace *cspace, cptr_t c)
 
 	} while (!done);
 		
-	printf("After Delete\n");
 	return;
 
 out2:
