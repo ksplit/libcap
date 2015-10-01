@@ -4,6 +4,11 @@
 ##                        ##
 ############################
 
-ccflags-y += -Werror
+CC	= cc
+all:
+	$(CC) -c src/cap.c src/cptr_cache.c src/grant_cap.c -I ./include/
+	ar -cvq ./lib/libcap.a cap.o cptr_cache.o grant_cap.o
 
-lib-y    +=  $(addprefix src/, cap.o grant_cap.o cptr_cache.c)
+clean:
+	rm ./lib/libcap.a
+	rm *.o
