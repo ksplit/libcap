@@ -86,7 +86,7 @@ void free_cdt_root(struct cdt_root_node *cdt_node)
 #ifdef KERNEL
 	ret = mutex_lock_interruptible(&cdt_cache.lock);
 #else
-	pthread_mutex_lock(&cdt_cache.lock);
+	ret = pthread_mutex_lock(&cdt_cache.lock);
 #endif
 	if (ret) {
 		LCD_ERR("interrupted");
