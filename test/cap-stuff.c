@@ -75,23 +75,20 @@ int testcase1()
 
 	/* Capability deletion from cspace. 
 	 */
-	
-	slot_out_orig = slot_out;
 	__lcd_cap_delete(csp, slot_out);
-	printf("Old=0x%lx New=0x%lx\n", cptr_val(slot_out_orig), cptr_val(slot_out));
 	
-	//Lookup
+	/*Lookup after deleting capability. It should Fail!!
+	 */
 	ret = __lcd_cnode_get(csp, slot_out, &check1);
-
         if (ret < 0) {
                 LCD_ERR("Lookup failed\n");
-                //goto fail;
         } else {
                 if (check1->object == p)
                         printf("Screwed!!!\n");
                 else
                         printf("Yippiee!!!\n");
         }
+	/* Release cnode Lock */
 	__lcd_cnode_put(check1);
 
 	/* Free the cspace 

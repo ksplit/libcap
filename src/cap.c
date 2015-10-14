@@ -381,7 +381,6 @@ static int __lcd_cnode_lookup(struct cspace *cspace, cptr_t c, bool alloc,
 		 * should keep going, and < 0 on error.
 		 */
 		ret = walk_one_level(cspace, c, alloc, old, &new, cnode);
-		printf("ret=%d __lcd_cnode_lookup\n", ret);
 		old = new;
 	} while (!ret);
 
@@ -505,7 +504,7 @@ int __lcd_cap_insert(struct cspace *cspace, cptr_t c, void *object,
 /* Working on this. For now this will give some issues. */
 static void free_cnode_object(struct cspace *cspace, struct cnode *cnode)
 {
-	printf("Inside function free_cnode_object\n");
+	return;
 /*	struct lcd *lcd;
 	switch (cnode->type) {
 	case LCD_CAP_TYPE_SYNC_EP:
@@ -558,7 +557,7 @@ static void free_cnode_object(struct cspace *cspace, struct cnode *cnode)
 /* Kept the dummy, Will be removing subsequently */
 static void update_microkernel(struct cspace *cspace, struct cnode *cnode)
 {
-	printf("In function update_microkernel");
+	return;
 /*
 	switch (cnode->type) {
 	case LCD_CAP_TYPE_SYNC_EP:
