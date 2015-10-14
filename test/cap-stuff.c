@@ -33,9 +33,9 @@ int testcase1()
 
 	ret = __lcd_cap_init_cspace(csp);
 	if (ret < 0)
-		printf("cspace Initialization Passed. Address:%p \n", csp);
+		printf("Cspace Initialization Failed!!\n");
 	else
-		printf("cspace Initialization Failed!!\n");
+		printf("Cspace Initialization Passed Address:%p \n", csp);
 
 	/* cptr cache intialization. This is totally users stuff */
 	cache = malloc (1 * sizeof(*cache));
@@ -54,7 +54,7 @@ int testcase1()
 	ret = __lcd_cap_insert(csp, slot_out, p, LCD_CAP_TYPE_PAGE);
 
         if (ret) {
-                LCD_ERR("set up cspace");
+                LCD_ERR("cap insertion failed\n");
                 goto fail;
         }
 
@@ -69,13 +69,16 @@ int testcase1()
 		else
 			printf("Capability lookup failed!!!\n");
 	}
+	/* Release cnode Lock */
+	__lcd_cnode_put(check);
 
 	/* Capability deletion from cspace. 
 	 * Presently, I am getting an issue in this functionality.
          * Some locking issue. I am working on it.
          * For now, I am commenting the code.
 	 */
-	/*
+
+	
 	slot_out_orig = slot_out;
 	__lcd_cap_delete(csp, slot_out);
 	printf("Old=0x%lx New=0x%lx\n", cptr_val(slot_out_orig), cptr_val(slot_out));
@@ -87,12 +90,11 @@ int testcase1()
                 LCD_ERR("Lookup failed\n");
                 //goto fail;
         } else {
-                if (check->object == p)
+                if (check1->object == p)
                         printf("Screwed!!!\n");
                 else
                         printf("Yippiee!!!\n");
         }
-	*/
 
 	/* Free the cspace 
 	 * Here we will destory the cspace.

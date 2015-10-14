@@ -65,7 +65,7 @@ struct cdt_root_node * get_cdt_root(void)
 #ifdef KERNEL
 	cdt_node = kmem_cache_alloc(cdt_cache.cdt_root_cache, 0);
 #else
-	cdt_node = (struct cdt_root_node*)malloc(1 * sizeof(struct cdt_root_node));
+	cdt_node = malloc(1 * sizeof(*cdt_node));
 #endif
 	cdt_node->state = ALLOCATION_VALID;
 #ifdef KERNEL
@@ -174,6 +174,15 @@ int __lcd_cap_init_cspace(struct cspace *cspace)
 		exit(-1);
 	}
 #endif
+	/*
+	 * Initialized cdt locking
+	 */
+	ret = __lcd_cap_init();
+
+	if (ret < 0) {
+		LCD_ERR("CDT cache initialization failed\n");
+		return ret;
+	}
 
 	/*
 	 * Initialize the cnode table cache. We can't use the
@@ -634,7 +643,7 @@ static int try_delete_cnode(struct cspace *cspace, struct cnode *cnode)
 #ifdef KERNEL
 	if (!mutex_trylock(&cnode->cdt_root->lock)) {
 #else
-	if (!pthread_mutex_lock(&cnode->cdt_root->lock)) {
+	if (pthread_mutex_lock(&cnode->cdt_root->lock)) {
 #endif
 		/*
 		 * Tell caller to retry
