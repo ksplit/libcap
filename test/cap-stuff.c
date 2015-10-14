@@ -10,8 +10,9 @@
  * 2. cptr cache initialization (User's stuff)
  * 3. Capability insertion in scpace
  * 4. Lookup after insertion
- * 5. Capability deletion (Here i am getting a locking issue)
- * 6. Capability Grant (Todo) 
+ * 5. Capability deletion 
+ * 6. Capability Grant (Todo)
+ * 7. Make code modular (Todo) 
  * 
  * For quick testing, I have embedded the code in one function.
  * I will subsequently break down the code in different functions.
@@ -73,11 +74,7 @@ int testcase1()
 	__lcd_cnode_put(check);
 
 	/* Capability deletion from cspace. 
-	 * Presently, I am getting an issue in this functionality.
-         * Some locking issue. I am working on it.
-         * For now, I am commenting the code.
 	 */
-
 	
 	slot_out_orig = slot_out;
 	__lcd_cap_delete(csp, slot_out);
@@ -95,6 +92,7 @@ int testcase1()
                 else
                         printf("Yippiee!!!\n");
         }
+	__lcd_cnode_put(check1);
 
 	/* Free the cspace 
 	 * Here we will destory the cspace.
@@ -103,6 +101,7 @@ int testcase1()
 	 * cspace has been deleted successfully.
 	 */
 	__lcd_cap_destroy_cspace(csp);
+
 	/* To check id cspace has been successfully destroyed,
 	 * try to insert capability in cspace. Following call should
          * return error.
@@ -110,7 +109,6 @@ int testcase1()
         ret = __lcd_cap_insert(csp, slot_out, p, LCD_CAP_TYPE_PAGE);
 
         if (ret) {
-                LCD_ERR("set up cspace\n");
 		printf("Cspace deletion TestCase Passed!!\n");
                 goto fail;
         }
