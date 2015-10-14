@@ -31,7 +31,7 @@ int testcase1()
 
 	/* Initialize a cspace */
 	csp = malloc(1 * sizeof(*csp));
-
+	printf("\nTestCase : Cspace Initialization.\n")
 	ret = __lcd_cap_init_cspace(csp);
 	if (ret < 0)
 		printf("Cspace Initialization Failed!!\n");
@@ -51,7 +51,8 @@ int testcase1()
         }
 	memset(p, 0, 4);
 
-	/* Insert capability in cspace */	
+	/* Insert capability in cspace */
+	printf("\nTestCase : Add Capability to Cspace.\n")
 	ret = __lcd_cap_insert(csp, slot_out, p, LCD_CAP_TYPE_PAGE);
 
         if (ret) {
@@ -66,15 +67,16 @@ int testcase1()
 		goto fail;
 	} else {
 		if (check->object == p)
-			printf("Capability Lookup Passed\n");
+			printf("Capability Addition & Lookup Passed\n");
 		else
-			printf("Capability lookup failed!!!\n");
+			printf("Capability Addition & Lookup Failed!!!\n");
 	}
 	/* Release cnode Lock */
 	__lcd_cnode_put(check);
 
 	/* Capability deletion from cspace. 
 	 */
+	printf("\nTestCase : Delete Capability from Cspace.\n");
 	__lcd_cap_delete(csp, slot_out);
 	
 	/*Lookup after deleting capability. It should Fail!!
@@ -82,6 +84,7 @@ int testcase1()
 	ret = __lcd_cnode_get(csp, slot_out, &check1);
         if (ret < 0) {
                 LCD_ERR("Lookup failed\n");
+		printf("Capability Deletion Passed\n");
         } else {
                 if (check1->object == p)
                         printf("Screwed!!!\n");
@@ -97,6 +100,7 @@ int testcase1()
 	 * __lcd_cap_insert call. If the call fails, that means
 	 * cspace has been deleted successfully.
 	 */
+	printf("\nTestCase : Delete Cspace.\n");
 	__lcd_cap_destroy_cspace(csp);
 
 	/* To check id cspace has been successfully destroyed,
@@ -106,7 +110,7 @@ int testcase1()
         ret = __lcd_cap_insert(csp, slot_out, p, LCD_CAP_TYPE_PAGE);
 
         if (ret) {
-		printf("Cspace deletion TestCase Passed!!\n");
+		printf("Cspace Deletion Passed!!\n");
                 goto fail;
         }
 fail:	
