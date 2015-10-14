@@ -31,7 +31,7 @@ int testcase1()
 
 	/* Initialize a cspace */
 	csp = malloc(1 * sizeof(*csp));
-	printf("\nTestCase : Cspace Initialization.\n")
+	printf("\nTestCase : Cspace Initialization.\n");
 	ret = __lcd_cap_init_cspace(csp);
 	if (ret < 0)
 		printf("Cspace Initialization Failed!!\n");
@@ -52,7 +52,7 @@ int testcase1()
 	memset(p, 0, 4);
 
 	/* Insert capability in cspace */
-	printf("\nTestCase : Add Capability to Cspace.\n")
+	printf("\nTestCase : Add Capability to Cspace.\n");
 	ret = __lcd_cap_insert(csp, slot_out, p, LCD_CAP_TYPE_PAGE);
 
         if (ret) {
@@ -110,7 +110,7 @@ int testcase1()
         ret = __lcd_cap_insert(csp, slot_out, p, LCD_CAP_TYPE_PAGE);
 
         if (ret) {
-		printf("Cspace Deletion Passed!!\n");
+		printf("Cspace Deletion Passed\n");
                 goto fail;
         }
 fail:	
