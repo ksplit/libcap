@@ -33,9 +33,9 @@ int testcase1()
 
 	ret = __lcd_cap_init_cspace(csp);
 	if (ret < 0)
-		printf("Cspace Initialization Passed Address:%p \n", csp);
+		printf("cspace Initialization Passed. Address:%p \n", csp);
 	else
-		printf("Cspace Initialization Failed!!\n")
+		printf("cspace Initialization Failed!!\n");
 
 	/* cptr cache intialization. This is totally users stuff */
 	cache = malloc (1 * sizeof(*cache));
