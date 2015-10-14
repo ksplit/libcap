@@ -401,7 +401,7 @@ int __lcd_cnode_get__(struct cspace *cspace, cptr_t c,
 	}
 
 	if (cspace->state != ALLOCATION_VALID) {
-		LCD_ERR("cspace state is not valid, state is %d", 
+		LCD_ERR("Cspace state is not valid, state is %d\n", 
 			cspace->state);
 		ret = -EIDRM;
 		goto fail2;
@@ -466,7 +466,7 @@ int __lcd_cap_insert(struct cspace *cspace, cptr_t c, void *object,
 	 */
 	ret = __lcd_cnode_get__(cspace, c, true, &cnode);
 	if (ret) {
-		LCD_ERR("error getting cnode for cptr 0x%lx",
+		LCD_ERR("Getting cnode for cptr 0x%lx\n",
 			cptr_val(c));
 		return ret;
 	}

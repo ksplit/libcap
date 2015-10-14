@@ -31,8 +31,11 @@ int testcase1()
 	/* Initialize a cspace */
 	csp = malloc(1 * sizeof(*csp));
 
-	__lcd_cap_init_cspace(csp);
-	printf("Initialized cspace Address:%p\n", csp);
+	ret = __lcd_cap_init_cspace(csp);
+	if (ret < 0)
+		printf("Cspace Initialization Passed Address:%p \n", csp);
+	else
+		printf("Cspace Initialization Failed!!\n")
 
 	/* cptr cache intialization. This is totally users stuff */
 	cache = malloc (1 * sizeof(*cache));
@@ -72,18 +75,17 @@ int testcase1()
          * Some locking issue. I am working on it.
          * For now, I am commenting the code.
 	 */
-
 	/*
 	slot_out_orig = slot_out;
 	__lcd_cap_delete(csp, slot_out);
-	printf("Old=%p New=%p\n", slot_out_orig, slot_out);
+	printf("Old=0x%lx New=0x%lx\n", cptr_val(slot_out_orig), cptr_val(slot_out));
 	
 	//Lookup
 	ret = __lcd_cnode_get(csp, slot_out, &check1);
 
         if (ret < 0) {
-                LCD_ERR("Lookup failed");
-                goto fail;
+                LCD_ERR("Lookup failed\n");
+                //goto fail;
         } else {
                 if (check->object == p)
                         printf("Screwed!!!\n");
@@ -91,6 +93,25 @@ int testcase1()
                         printf("Yippiee!!!\n");
         }
 	*/
+
+	/* Free the cspace 
+	 * Here we will destory the cspace.
+	 * We will confirm the deletion after making a
+	 * __lcd_cap_insert call. If the call fails, that means
+	 * cspace has been deleted successfully.
+	 */
+	__lcd_cap_destroy_cspace(csp);
+	/* To check id cspace has been successfully destroyed,
+	 * try to insert capability in cspace. Following call should
+         * return error.
+	 */
+        ret = __lcd_cap_insert(csp, slot_out, p, LCD_CAP_TYPE_PAGE);
+
+        if (ret) {
+                LCD_ERR("set up cspace\n");
+		printf("Cspace deletion TestCase Passed!!\n");
+                goto fail;
+        }
 fail:	
 	/* Free memory stuff. */
 	return ret;
