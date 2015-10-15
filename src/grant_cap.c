@@ -19,7 +19,7 @@
  *  This entire functionality has te be tested yet!!
  *  I am testing it and will add the testing results.
  */
-static int libcap_grant_capability(void *s_cspace, void *d_cspace,
+int libcap_grant_capability(void *s_cspace, void *d_cspace,
 		cptr_t s_cptr, cptr_t d_cptr)
 {
 	int ret;
@@ -55,7 +55,7 @@ static int libcap_grant_capability(void *s_cspace, void *d_cspace,
  * May be needed if such scenario exists.
  * 
  */
-static int libcap_try_grant_cnode(void *cspacedst, void *cnodesrc,
+int libcap_try_grant_cnode(void *cspacedst, void *cnodesrc,
                 void *cnodedst)
 {
 	/*

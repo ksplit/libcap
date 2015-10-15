@@ -467,4 +467,7 @@ void __lcd_destroy(struct lcd *owned_lcd);
 
 void __lcd_destroy__(struct lcd *owned_lcd);
 
+/* LIBCAP specific */
+int libcap_grant_capability(void *s, void *d, cptr_t s_c, cptr_t d_c);
+
 #endif /* LCD_DOMAINS_INTERNAL_H */

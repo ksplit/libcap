@@ -118,9 +118,113 @@ fail:
 	return ret;
 }
 
+int cspace_init(struct cspace *csp)
+{
+	int ret;
+	
+	csp = malloc(1 * sizeof(*csp));	
+	ret = __lcd_cap_init_cspace(csp);
+
+	return ret;
+}
+
+int cache_init(struct cptr_cache *cache)
+{
+	int ret;
+
+	cache = malloc (1 * sizeof(*cache));
+	ret = cptr_cache_init(&cache);
+
+	return ret;
+}
+
+int testcase_grant()
+{
+	int ret;
+	struct cspace *scsp, *dcsp;
+	struct cnode *cnode;
+	cptr_t sslot, dslot;
+	struct cptr_cache *scache, *dcache;
+	char *p;
+	struct cnode *scnode;
+	struct cnode *dcnode;
+
+	/* Initialize Source cspace */
+	ret = cspace_init(scsp);
+	if (ret < 0) {
+		printf("Cspace Setup Failed\n");
+		return ret;
+	}
+
+	/* cptr cache intialization. This is totally users stuff */
+	ret = cache_init(scache);
+	if (ret < 0) {
+		printf("Cache Initilization failed\n");
+		return ret;
+	}
+
+	ret = __klcd_alloc_cptr(scache, &sslot);
+	if (ret < 0) {
+		printf("cptr allocation Failed!!\n");
+		return ret;
+	}
+	p = malloc(sizeof(char) * 4);
+	/* Insert capability in cspace */
+	printf("\nTestCase : Add Capability to Cspace.\n");
+	ret = __lcd_cap_insert(scsp, sslot, p, LCD_CAP_TYPE_PAGE);
+	if (ret) {
+		LCD_ERR("cap insertion failed\n");
+		goto fail;
+	}
+
+	/* Setup destination cspace */
+	ret = cspace_init(dcsp);
+	if (ret < 0) {
+		printf("Cspace Setup Failed\n");
+		return ret;
+	}
+
+	ret = cache_init(dcache);
+	if (ret < 0) {
+		printf("Cache Initilization failed\n");
+		return ret;
+	}
+
+	ret = __klcd_alloc_cptr(dcache, &dslot);
+	if (ret < 0) {
+		printf("cptr allocation Failed!!\n");
+		return ret;
+	}
+	
+	ret = libcap_grant_capability((void *)scsp, (void *)dcsp, sslot, dslot);
+	if (ret < 0) {
+		printf("Granting capability failed\n");
+		return ret;
+	}
+
+	ret = __lcd_cnode_get(dcsp, dslot, &dcnode);
+	if (ret < 0) {
+		LCD_ERR("Lookup failed\n");
+		printf("Capability Deletion Passed\n");
+	} else {
+		if (dcnode->object == p)
+			printf("Screwed!!!\n");
+		else
+			printf("Yippiee!!!\n");
+	}
+	/* Release cnode Lock */
+	__lcd_cnode_put(dcnode);
+fail:
+	return ret;
+}
+
 int main()
 {
 	int ret;
 
 	ret = testcase1();
+	/* Commenting grant testcase because of coredump issue.
+	 * Need to fix it
+	 */
+	//ret = testcase_grant();
 }
