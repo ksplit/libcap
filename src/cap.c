@@ -801,7 +801,7 @@ static int try_grant(struct cspace *cspacedst, struct cnode *cnodesrc,
 #ifdef KERNEL
 	if (!mutex_trylock(&cnodesrc->cdt_root->lock)) {
 #else
-	if (!pthread_mutex_lock(&cnodesrc->cdt_root->lock)) {
+	if (pthread_mutex_lock(&cnodesrc->cdt_root->lock)) {
 		/*
 		 * Tell caller to retry
 		 */
@@ -993,7 +993,7 @@ static int try_revoke(struct cspace *cspace, struct cnode *cnode)
 #ifdef KERNEL
 	if (!mutex_trylock(&cnode->cdt_root->lock)) {
 #else
-	if (!pthread_mutex_lock(&cnode->cdt_root->lock)) {
+	if (pthread_mutex_lock(&cnode->cdt_root->lock)) {
 #endif
 		/*
 		 * Tell caller to retry
