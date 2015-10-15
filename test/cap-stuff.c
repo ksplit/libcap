@@ -11,8 +11,9 @@
  * 3. Capability insertion in scpace
  * 4. Lookup after insertion
  * 5. Capability deletion 
- * 6. Capability Grant (Todo)
- * 7. Make code modular (Todo) 
+ * 6. Capability Grant 
+ * 7. Make code modular (Todo)
+ * 8. Test with multiple threads (In process) 
  * 
  * For quick testing, I have embedded the code in one function.
  * I will subsequently break down the code in different functions.
@@ -39,7 +40,6 @@ int testcase1()
 		printf("Cspace Initialization Passed Address:%p \n", csp);
 
 	/* cptr cache intialization. This is totally users stuff */
-	cache = malloc (1 * sizeof(*cache));
 	ret = cptr_cache_init(&cache);
 	
 	ret = __klcd_alloc_cptr(cache, &slot_out);
@@ -118,26 +118,6 @@ fail:
 	return ret;
 }
 
-int cspace_init(struct cspace *csp)
-{
-	int ret;
-	
-	csp = malloc(1 * sizeof(*csp));	
-	ret = __lcd_cap_init_cspace(csp);
-
-	return ret;
-}
-
-int cache_init(struct cptr_cache *cache)
-{
-	int ret;
-
-	cache = malloc (1 * sizeof(*cache));
-	ret = cptr_cache_init(&cache);
-
-	return ret;
-}
-
 int testcase_grant()
 {
 	int ret;
@@ -150,71 +130,81 @@ int testcase_grant()
 	struct cnode *dcnode;
 
 	/* Initialize Source cspace */
-	ret = cspace_init(scsp);
+	scsp = malloc(1 * sizeof(*scsp));
+	ret = __lcd_cap_init_cspace(scsp);
+	//ret = cspace_init(scsp);
 	if (ret < 0) {
 		printf("Cspace Setup Failed\n");
 		return ret;
 	}
+	printf("Source Cspace Initilaized: Address=%p\n", scsp);
 
 	/* cptr cache intialization. This is totally users stuff */
-	ret = cache_init(scache);
+	ret = cptr_cache_init(&scache);
 	if (ret < 0) {
 		printf("Cache Initilization failed\n");
-		return ret;
+		goto fail1;
 	}
 
 	ret = __klcd_alloc_cptr(scache, &sslot);
 	if (ret < 0) {
 		printf("cptr allocation Failed!!\n");
-		return ret;
+		goto fail1;
 	}
 	p = malloc(sizeof(char) * 4);
 	/* Insert capability in cspace */
-	printf("\nTestCase : Add Capability to Cspace.\n");
 	ret = __lcd_cap_insert(scsp, sslot, p, LCD_CAP_TYPE_PAGE);
 	if (ret) {
 		LCD_ERR("cap insertion failed\n");
-		goto fail;
+		goto fail1;
 	}
+	printf("Added capability [%p] to Source cspace\n", p);
 
 	/* Setup destination cspace */
-	ret = cspace_init(dcsp);
+	dcsp = malloc(1 * sizeof(*dcsp));
+        ret = __lcd_cap_init_cspace(dcsp);
 	if (ret < 0) {
 		printf("Cspace Setup Failed\n");
 		return ret;
 	}
+	printf("Destination Cspace Initilaized: Address=%p\n", dcsp);
 
-	ret = cache_init(dcache);
+	ret = cptr_cache_init(&dcache);
 	if (ret < 0) {
 		printf("Cache Initilization failed\n");
-		return ret;
+		goto fail2;
 	}
 
 	ret = __klcd_alloc_cptr(dcache, &dslot);
 	if (ret < 0) {
 		printf("cptr allocation Failed!!\n");
-		return ret;
+		goto fail2;
 	}
 	
 	ret = libcap_grant_capability((void *)scsp, (void *)dcsp, sslot, dslot);
 	if (ret < 0) {
 		printf("Granting capability failed\n");
-		return ret;
+		goto fail2;
 	}
 
 	ret = __lcd_cnode_get(dcsp, dslot, &dcnode);
 	if (ret < 0) {
 		LCD_ERR("Lookup failed\n");
-		printf("Capability Deletion Passed\n");
+		goto fail2;
 	} else {
-		if (dcnode->object == p)
-			printf("Screwed!!!\n");
-		else
-			printf("Yippiee!!!\n");
+		if (dcnode->object == p) {
+			printf("Capability granted successfully from Cspace[%p] at slot 0x%lx \
+			to Cspace[%p] at slot 0x%lx\n", scsp, cptr_val(sslot), dcsp, cptr_val(dslot));
+		} else
+			printf("Failed to grant capability!!\n");
 	}
 	/* Release cnode Lock */
 	__lcd_cnode_put(dcnode);
-fail:
+
+fail2:
+	__lcd_cap_destroy_cspace(dcsp);
+fail1:
+	__lcd_cap_destroy_cspace(scsp);
 	return ret;
 }
 
@@ -223,8 +213,6 @@ int main()
 	int ret;
 
 	ret = testcase1();
-	/* Commenting grant testcase because of coredump issue.
-	 * Need to fix it
-	 */
-	//ret = testcase_grant();
+	printf("\n\nTestcase : Capability Grant.\n");
+	ret = testcase_grant();
 }
