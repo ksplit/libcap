@@ -6,6 +6,8 @@ flags	= -lpthread -lcap -L $(libdir)
 
 all:
 	$(CC) -g -o test-cap cap-stuff.c $(flags)
+	$(CC) -g -o mult multi_thrd_cap.c $(flags)
 
 clean:
 	rm test-cap
+	rm mult
