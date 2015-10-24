@@ -35,7 +35,7 @@ int insert (struct cspace *csp, cptr_t slot) {
 	void *p;
 
 	p = malloc(1 * sizeof(*p));
-	if (p < 0) {
+	if (!p) {
 		perror("malloc\n");
 		return 1;
 	}
@@ -83,7 +83,7 @@ int main()
 	int i, ret, j;
 	
 	scsp = malloc(1 * sizeof(*scsp));
-	if (scsp < 0) {
+	if (!scsp) {
 		perror("malloc cspace\n");
 		exit(1);
 	}
