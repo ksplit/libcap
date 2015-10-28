@@ -126,8 +126,6 @@ int cptr_cache_init(struct cptr_cache **out)
 	 * Mark reserved cptr's as allocated
 	 */
 	set_bit(0, cache->bmaps[0]);
-	set_bit(1, cache->bmaps[0]);
-	set_bit(2, cache->bmaps[0]);
 
 	*out = cache;
 

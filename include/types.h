@@ -27,18 +27,8 @@ static inline unsigned long cptr_val(cptr_t c)
  * Reserved cnodes:
  *
  * cptr = 0 is always null
- * cptr = 1 is the lcd's call endpoint
- * cptr = 2 points to an endpoint if the lcd did a receive, and the sender did
- *          a call (so the lcd can do a reply)
- *
- * So, if lcd A does a call on endpoint #1 and lcd B does a receive on endpoint
- * #1, the endpoint at LCD_CAP_CALL_ENDPOINT in A's cspace will be granted
- * to lcd B in B's cspace at cptr LCD_CAP_REPLY_ENDPOINT. lcd B can do a reply
- * (one time and then it's revoked).
  */
 #define LCD_CPTR_NULL __cptr(0)
-#define LCD_CPTR_CALL_ENDPOINT __cptr(1)
-#define LCD_CPTR_REPLY_ENDPOINT __cptr(2)
 
 static inline int cptr_is_null(cptr_t c)
 {
