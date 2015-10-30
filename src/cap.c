@@ -1048,8 +1048,7 @@ static int try_revoke(struct cspace *cspace, struct cnode *cnode)
 		 * If the child is in the cdt, its type should match cnode's
 		 * type (it shouldn't be invalid, free, or a cnode).
 		 */
-		//BUG_ON(child->type != cnode->type);
-		assert(child->type != cnode->type);
+		assert(child->type == cnode->type);
 		/*
 		 * Delete from cdt. 
 		 */
