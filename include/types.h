@@ -35,9 +35,9 @@ static inline int cptr_is_null(cptr_t c)
 	return cptr_val(c) == cptr_val(LCD_CPTR_NULL);
 }
 
-#define LCD_CPTR_DEPTH_BITS  2    /* max depth of 3, zero indexed         */
-#define LCD_CPTR_FANOUT_BITS 2    /* each level fans out by a factor of 4 */
-#define LCD_CPTR_SLOT_BITS   2    /* each node contains 4 cap slots       */
+#define LCD_CPTR_DEPTH_BITS  3    /* max depth of 3, zero indexed         */
+#define LCD_CPTR_FANOUT_BITS 3    /* each level fans out by a factor of 4 */
+#define LCD_CPTR_SLOT_BITS   3    /* each node contains 4 cap slots       */
 #define LCD_CNODE_TABLE_NUM_SLOTS ((1 << LCD_CPTR_SLOT_BITS) + \
 					(1 << LCD_CPTR_FANOUT_BITS))
 #define LCD_CPTR_LEVEL_SHIFT (((1 << LCD_CPTR_DEPTH_BITS) - 1) * \
