@@ -1,0 +1,33 @@
+
+top_srcdir = @top_srcdir@
+abs_top_srcdir = @abs_top_srcdir@
+
+COMMON_SRCFILES = \
+	$(top_srcdir)/src/common/cap.c $(top_srcdir)/src/common/cptr_cache.c
+SRCFILES = \
+	$(top_srcdir)cap_module.c
+HFILES = \
+	$(top_srcdir)/include/libcap.h $(top_srcdir)/include/libcap_types.h $(top_srcdir)/include/libcap_kernel.h $(top_srcdir)/include/libcap_internal.h $(top_srcdir)/include/libcap_internal_kernel.h
+libcap_la_SOURCES = \
+
+obj-m += cap_module.o
+cap_module-objs := cap.o cptr_cache.o
+
+KDIR ?= /lib/modules/$(shell uname -r)/build
+PWD := $(shell pwd)
+
+ccflags-y = -DMODULE -D__KERNEL__ -I$(abs_top_srcdir)/include
+
+$(CFILES:.c=.o): $(HFILES) Makefile
+
+all:
+	$(MAKE) -C $(KDIR) M=$(PWD) modules
+#	$(MAKE) -C $(KDIR) M=$(top_srcdir)/src/kernel O=$(PWD) modules
+
+modules_install:
+	$(MAKE) -C $(KDIR) M=$(PWD) modules_install
+
+install:
+
+clean:
+	$(MAKE) -C $(KDIR) M=$(PWD) clean

@@ -1,8 +1,26 @@
 #include <stdio.h>
-#include "../include/internal.h"
-#include "../include/types.h"
 #include <string.h>
-#define ENOMEM 1
+#include <errno.h>
+#include "libcap.h"
+#include "libcap_internal.h"
+#include "libcap_types.h"
+
+int stringobj_delete(struct cspace *cspace, struct cnode *cnode, void *object)
+{
+	CAP_DEBUG(0, "object = '%s'\n", (char *)object);
+}
+
+int stringobj_revoke(struct cspace *cspace, struct cnode *cnode, void *object)
+{
+	CAP_DEBUG(0, "object = '%s'\n", (char *)object);
+}
+
+int stringobj_type = 0;
+struct cap_type_ops stringobj_ops = {
+	.name = "stringobj",
+	.delete = stringobj_delete,
+	.revoke = stringobj_revoke,
+};
 
 /* 
  * A testcase to check:
@@ -22,10 +40,10 @@
 int testcase1()
 {
 	int ret = 0;
-	struct cspace * csp;
+	struct cspace *csp;
 	struct cnode *cnode;
 	cptr_t slot_out, slot_out_orig;
-        struct cptr_cache *cache;
+	struct cptr_cache *cache;
 	char *p;
 	struct cnode *check;
 	struct cnode *check1;
@@ -33,7 +51,7 @@ int testcase1()
 	/* Initialize a cspace */
 	csp = malloc(1 * sizeof(*csp));
 	printf("\nTestCase : Cspace Initialization.\n");
-	ret = __lcd_cap_init_cspace(csp);
+	ret = cap_init_cspace(csp);
 	if (ret < 0)
 		printf("Cspace Initialization Failed!!\n");
 	else
@@ -41,29 +59,28 @@ int testcase1()
 
 	/* cptr cache intialization. This is totally users stuff */
 	ret = cptr_cache_init(&cache);
-	
-	ret = __klcd_alloc_cptr(cache, &slot_out);
-        p = malloc(sizeof(char) * 4);
-        if (!p) {
-                LCD_ERR("alloc failed");
-                ret = -ENOMEM;
-                goto fail;
-        }
-	memset(p, 0, 4);
+
+	ret = cptr_alloc(cache, &slot_out);
+	p = strdup("testcase1");
+	if (!p) {
+		CAP_ERR("alloc failed");
+		ret = -ENOMEM;
+		goto fail;
+	}
 
 	/* Insert capability in cspace */
 	printf("\nTestCase : Add Capability to Cspace.\n");
-	ret = __lcd_cap_insert(csp, slot_out, p, LCD_CAP_TYPE_PAGE);
+	ret = cap_insert(csp, slot_out, p, stringobj_type);
 
-        if (ret) {
-                LCD_ERR("cap insertion failed\n");
-                goto fail;
-        }
+	if (ret < 0) {
+		CAP_ERR("cap insertion failed\n");
+		goto fail;
+	}
 
 	/* Verification if capability is properly inserted in the cspace. */
-	ret = __lcd_cnode_get(csp, slot_out, &check);
+	ret = cap_cnode_get(csp, slot_out, &check);
 	if (ret < 0) {
-		LCD_ERR("Lookup failed");
+		CAP_ERR("Lookup failed");
 		goto fail;
 	} else {
 		if (check->object == p)
@@ -72,27 +89,28 @@ int testcase1()
 			printf("Capability Addition & Lookup Failed!!!\n");
 	}
 	/* Release cnode Lock */
-	__lcd_cnode_put(check);
+	cap_cnode_put(check);
 
 	/* Capability deletion from cspace. 
 	 */
 	printf("\nTestCase : Delete Capability from Cspace.\n");
-	__lcd_cap_delete(csp, slot_out);
-	
+	cap_delete(csp, slot_out);
+
 	/*Lookup after deleting capability. It should Fail!!
 	 */
-	ret = __lcd_cnode_get(csp, slot_out, &check1);
-        if (ret < 0) {
-                LCD_ERR("Lookup failed\n");
+	ret = cap_cnode_get(csp, slot_out, &check1);
+	if (ret < 0) {
+		CAP_ERR("Lookup failed\n");
 		printf("Capability Deletion Passed\n");
-        } else {
-                if (check1->object == p)
-                        printf("Screwed!!!\n");
-                else
-                        printf("Yippiee!!!\n");
-        }
+	} else {
+		if (check1->object == p)
+			printf("Screwed!!!\n");
+		else
+			printf("Yippiee!!!\n");
+	}
 	/* Release cnode Lock */
-	__lcd_cnode_put(check1);
+	if (check1)
+		cap_cnode_put(check1);
 
 	/* Free the cspace 
 	 * Here we will destory the cspace.
@@ -101,19 +119,19 @@ int testcase1()
 	 * cspace has been deleted successfully.
 	 */
 	printf("\nTestCase : Delete Cspace.\n");
-	__lcd_cap_destroy_cspace(csp);
+	cap_destroy_cspace(csp);
 
 	/* To check id cspace has been successfully destroyed,
 	 * try to insert capability in cspace. Following call should
-         * return error.
+	 * return error.
 	 */
-        ret = __lcd_cap_insert(csp, slot_out, p, LCD_CAP_TYPE_PAGE);
+	ret = cap_insert(csp, slot_out, p, stringobj_type);
 
-        if (ret < 0) {
+	if (ret) {
 		printf("Cspace Deletion Passed\n");
-                goto fail;
-        }
-fail:	
+		goto fail;
+	}
+ fail:
 	/* Free memory stuff. */
 	return ret;
 }
@@ -134,8 +152,7 @@ int testcase_grant()
 
 	/* Initialize Source cspace */
 	scsp = malloc(1 * sizeof(*scsp));
-	ret = __lcd_cap_init_cspace(scsp);
-	//ret = cspace_init(scsp);
+	ret = cap_init_cspace(scsp);
 	if (ret < 0) {
 		printf("Cspace Setup Failed\n");
 		return ret;
@@ -149,23 +166,23 @@ int testcase_grant()
 		goto fail1;
 	}
 
-	ret = __klcd_alloc_cptr(scache, &sslot);
+	ret = cptr_alloc(scache, &sslot);
 	if (ret < 0) {
 		printf("cptr allocation Failed!!\n");
 		goto fail1;
 	}
-	p = malloc(sizeof(char) * 4);
+	p = strdup("testcase_grant");
 	/* Insert capability in cspace */
-	ret = __lcd_cap_insert(scsp, sslot, p, LCD_CAP_TYPE_PAGE);
+	ret = cap_insert(scsp, sslot, p, stringobj_type);
 	if (ret) {
-		LCD_ERR("cap insertion failed\n");
+		CAP_ERR("cap insertion failed\n");
 		goto fail1;
 	}
 	printf("Added capability [%p] to Source cspace\n", p);
 
 	/* Setup destination cspace */
 	dcsp = malloc(1 * sizeof(*dcsp));
-        ret = __lcd_cap_init_cspace(dcsp);
+	ret = cap_init_cspace(dcsp);
 	if (ret < 0) {
 		printf("Cspace Setup Failed\n");
 		return ret;
@@ -178,36 +195,37 @@ int testcase_grant()
 		goto fail2;
 	}
 
-	ret = __klcd_alloc_cptr(dcache, &dslot);
+	ret = cptr_alloc(dcache, &dslot);
 	if (ret < 0) {
 		printf("cptr allocation Failed!!\n");
 		goto fail2;
 	}
-	
-	ret = libcap_grant_capability((void *)scsp, (void *)dcsp, sslot, dslot);
+
+	ret = cap_grant(scsp, sslot, dcsp, dslot);
 	if (ret < 0) {
 		printf("Granting capability failed\n");
 		goto fail2;
 	}
 
-	ret = __lcd_cnode_get(dcsp, dslot, &dcnode);
+	ret = cap_cnode_get(dcsp, dslot, &dcnode);
 	if (ret < 0) {
-		LCD_ERR("Lookup failed\n");
+		CAP_ERR("Lookup failed\n");
 		goto fail2;
 	} else {
 		if (dcnode->object == p) {
 			printf("Capability granted successfully from Cspace[%p] at slot 0x%lx \
-			to Cspace[%p] at slot 0x%lx\n", scsp, cptr_val(sslot), dcsp, cptr_val(dslot));
+			to Cspace[%p] at slot 0x%lx\n", scsp, cptr_val(sslot),
+			       dcsp, cptr_val(dslot));
 		} else
 			printf("Failed to grant capability!!\n");
 	}
 	/* Release cnode Lock */
-	__lcd_cnode_put(dcnode);
+	cap_cnode_put(dcnode);
 
-fail2:
-	__lcd_cap_destroy_cspace(dcsp);
-fail1:
-	__lcd_cap_destroy_cspace(scsp);
+ fail2:
+	cap_destroy_cspace(dcsp);
+ fail1:
+	cap_destroy_cspace(scsp);
 	return ret;
 }
 
@@ -217,18 +235,19 @@ fail1:
 int insert(struct cspace *csp, cptr_t slot)
 {
 	int ret = 0;
-	void *p;
+	char *p;
 
-	p = malloc(1 * sizeof(*p));
+	p = malloc(5 * sizeof(*p));
 	if (!p) {
 		perror("malloc\n");
 		ret = -1;
 		goto fail;
 	}
+	snprintf(p,5,"icap");
 
-	ret = __lcd_cap_insert(csp, slot, p, LCD_CAP_TYPE_PAGE);
+	ret = cap_insert(csp, slot, p, stringobj_type);
 	if (ret < 0) {
-		LCD_ERR("cap insertion failed\n");
+		CAP_ERR("cap insertion failed\n");
 	}
 
 fail:
@@ -241,7 +260,7 @@ fail:
 int grant(struct cspace *scsp, struct cspace *dcsp, cptr_t sslot, cptr_t dslot) {
 	int ret = 0;
 
-	ret = libcap_grant_capability((void *)scsp, (void *)dcsp, sslot, dslot);
+	ret = cap_grant(scsp, sslot, dcsp, dslot);
 	if (ret < 0)
 		printf("Granting capability failed\n");
 
@@ -255,11 +274,11 @@ int get_cnode(struct cspace *csp, cptr_t sslot) {
 	int ret = 0;
 	struct cnode *dcnode;
 
-	ret = __lcd_cnode_get(csp, sslot, &dcnode);
+	ret = cap_cnode_get(csp, sslot, &dcnode);
 	if (ret < 0)
-		LCD_ERR("Destination CSPACE Lookup failed\n");
+		CAP_ERR("Destination CSPACE Lookup failed\n");
 	/* Release cnode Lock */
-	__lcd_cnode_put(dcnode);
+	cap_cnode_put(dcnode);
 	return ret;
 }
 
@@ -269,10 +288,10 @@ int get_cnode(struct cspace *csp, cptr_t sslot) {
 int revoke(struct cspace *csp, cptr_t sslot, struct cptr_cache *scache) {
 	int ret = 0;
 
-	ret = __lcd_cap_revoke(csp, sslot);
+	ret = cap_revoke(csp, sslot);
 	if (ret < 0)
 		printf("Revoke failed\n");
-	__klcd_free_cptr(scache, sslot);
+	cptr_free(scache, sslot);
 
 	return ret;
 }
@@ -289,6 +308,7 @@ int testcase_revoke() {
 	struct cspace *scsp, *dcsp;
 	struct cptr_cache *scache, *dcache;
 	cptr_t sslot, dslot;
+	struct cnode *scnode = NULL;
 
 	printf("\nTestcase : Capability Revocation\n");
 	/* 1st CSPACE */
@@ -297,7 +317,7 @@ int testcase_revoke() {
                 perror("malloc cspace\n");
                 exit(1);
         }
-        ret = __lcd_cap_init_cspace(scsp);
+        ret = cap_init_cspace(scsp);
         if (ret < 0) {
                 printf("Cspace Initialization failed\n");
                 goto fail1;
@@ -314,7 +334,7 @@ int testcase_revoke() {
                 perror("malloc cspace\n");
                 goto fail1;
         }
-        ret = __lcd_cap_init_cspace(dcsp);
+        ret = cap_init_cspace(dcsp);
         if (ret < 0) {
                 printf("Cspace Initialization failed\n");
                 goto fail2;
@@ -325,12 +345,12 @@ int testcase_revoke() {
                 goto fail2;
         }
 
-	ret = __klcd_alloc_cptr(scache, &sslot);
+	ret = cptr_alloc(scache, &sslot);
         if (ret < 0) {
                 printf("cptr aloocation failed\n");
                 goto fail;
         }
-	ret = __klcd_alloc_cptr(dcache, &dslot);
+	ret = cptr_alloc(dcache, &dslot);
 	if (ret < 0) {
                 printf("cptr aloocation failed\n");
 		goto fail;
@@ -345,17 +365,18 @@ int testcase_revoke() {
 	ret = revoke(scsp, sslot, scache);
 	if (ret < 0)
 		goto fail2;
-	ret = get_cnode(dcsp, dslot);
+	ret = cap_cnode_get(dcsp, dslot, &scnode);
 	if (ret < 0) {
 		printf("\nTestcase Capability Revocation Passed\n");
+		ret = 0;
 		goto fail2;
 	}
 	printf("\nTestcase capability Revocation Failed\n");
 
 fail2:
-	__lcd_cap_destroy_cspace(dcsp);
+	cap_destroy_cspace(dcsp);
 fail1:
-	__lcd_cap_destroy_cspace(scsp);
+	cap_destroy_cspace(scsp);
 fail:
 	return ret;
 }
@@ -364,9 +385,24 @@ int main()
 {
 	int ret = 0;
 
+	/*
+	 * Initialize libcap.
+	 */
+	ret = cap_init();
+	if (ret < 0) {
+		CAP_ERR("libcap init failed");
+		return ret;
+	}
+	cptr_init();
+
+	stringobj_type = cap_register_type(stringobj_type, &stringobj_ops);
+
 	ret = testcase1();
 	ret = testcase_grant();
 	ret = testcase_revoke();
+
+	cptr_fini();
+	cap_fini();
 
 	return ret;
 }

@@ -1,0 +1,68 @@
+PREREQUISITES
+-------------
+
+  * a basic Linux development environment, including gcc, glibc,
+    automake, autoconf, libtool, et al;
+
+  * glib > 2.10 (https://developer.gnome.org/glib/) (this will already
+    be installed on any modern Linux distro; you shouldn't need to
+    install it from source, ever);
+
+  * Linux kernel headers and build metadata, if you want to build the
+    kernel module.
+
+  On Ubuntu, you should be able to get everything you need with this
+  command, or similar:
+
+    $ sudo apt-get install build-essential automake autoconf libtool \
+        linux-headers-<VERSION> libglib2.0-0 libglib2.0-dev
+
+  (where <VERSION> is the version of the kernel corresponding to your
+  installed kernel; on Ubuntu, you'll have already installed a
+  linux-image-<VERSION>).
+
+
+
+BUILD & INSTALL
+---------------
+
+First, run ./autogen.sh in the top source directory.  This will prepare
+the source tree to be built.
+
+  $ cd libcap
+  $ ./autogen.sh
+
+Second, create a separate object directory; this holds the compiled
+binaries and libraries.  You can also build within the source tree, but
+usually it's nice to have the separation so you don't have to clean out
+lint in your source tree.
+
+  $ cd ..
+  $ mkdir libcap.obj
+  $ cd libcap.obj
+
+Third, configure the build.  You can run `../libcap/configure --help` to
+see a list of configure options.  --prefix is the installation prefix;
+you may want to set it to something out-of-the-way like /opt/libcap, or
+you might not.  You can skip the kernel module build by supplying
+--disable-kernel .  If your glib is installed in a non-standard place,
+you can tell configure by passing the appropriate directory to the
+--with-glib option.
+
+  $ ../libcap/configure --prefix=/opt/libcap
+
+Fourth, make and make install!
+
+  $ make && make install
+
+This will build the libcap library, kernel module, and test programs;
+and install the libcap headers and library.  If you want to run the test
+programs, you'd do something like
+
+  $ test/user/multi_thrd_cap
+
+and watch the fun.
+
+Finally, if you want to install the kernel module, do that like this:
+
+  $ make -C src/kernel modules_install
