@@ -3,7 +3,7 @@ staging:
   - ./autogen.sh
   - mkdir build install
   - cd build
-  - ../configure --prefix=../install
+  - ../configure --prefix=`readlink -f ../install`
   - make
   - make install
   only:
