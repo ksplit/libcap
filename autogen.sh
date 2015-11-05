@@ -2,6 +2,5 @@
 
 aclocal -I m4 && \
     autoheader && \
-    libtoolize && \
-    autoconf && \
-    automake --add-missing --force-missing --copy
+    automake --gnu --add-missing && \
+    autoconf
