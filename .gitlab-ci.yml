@@ -1,0 +1,10 @@
+staging:
+  script:
+  - ./autogen.sh
+  - mkdir build install
+  - cd build
+  - ../configure --prefix=`readlink -f ../install`
+  - make
+  - make install
+  only:
+  - user-kernel-refactor
