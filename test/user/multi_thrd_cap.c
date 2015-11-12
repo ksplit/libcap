@@ -11,8 +11,8 @@
  * Accessing cspace by multiple threads [Done]
  * Accessing cptr cache by multiple threads [Done]
  * capability insertion by multiple threads [Done]
- * Grant [Todo]
- * Revoke [Todo]
+ * Grant [Done]
+ * Revoke [Done]
  *
  * Test execution:
  *   ./<obj>/test/user/multi_thrd_cap
@@ -166,8 +166,6 @@ void *thread_revoke(void* arg)
 		if (ret < 0)
 			printf("Revoke failed\n");
 		cap_delete(scsp, sslot_arr[i]);
-		if (ret < 0)
-			printf("Delete failed\n");
 		cptr_free(scache, sslot_arr[i]);
 		sslot_arr[i] = CAP_CPTR_NULL;
 
@@ -222,7 +220,6 @@ void *thread_get(void * arg) {
 	    n = THREAD_COUNT - 4;
 
 	while (i < n) {
-		struct cnode *dcnode;
 		if (cptr_is_null(dslot_arr[i])) {
 			printf("Thread Get : null cptr slot %d, stalling...\n",
 			       i);
@@ -232,14 +229,11 @@ void *thread_get(void * arg) {
 			printf("Thread Get : unstalled cptr slot %d\n",
 			       i);
 		}
-		ret = cap_cnode_get(dcsp, dslot_arr[i], &dcnode);
-		if (ret < 0) {
+		ret = cap_cnode_verify(dcsp, dslot_arr[i]);
+		if (ret < 0)
 			CAP_ERR("Destination CSPACE Lookup failed\n");
-		} else {
+		else
 			printf("Lookup PASS\n");
-			/* Release cnode Lock */
-			cap_cnode_put(dcnode);
-		}
 		i++;
 	}
 }

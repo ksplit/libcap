@@ -438,6 +438,18 @@ void cap_cnode_put(struct cnode *cnode)
 	cap_mutex_unlock(&cnode->lock);
 }
 
+int cap_cnode_verify(struct cspace *cspace, cptr_t c)
+{
+	struct cnode *cnode;
+	int ret;
+
+	ret = cap_cnode_get(cspace, c, &cnode);
+	if (ret == 0)
+		cap_cnode_put(cnode);
+	
+	return ret;
+}
+
 int cap_insert(struct cspace *cspace, cptr_t c, void *object, cap_type_t type)
 {
 	struct cnode *cnode;

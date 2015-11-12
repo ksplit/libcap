@@ -41,12 +41,9 @@ int testcase1()
 {
 	int ret = 0;
 	struct cspace *csp;
-	struct cnode *cnode;
 	cptr_t slot_out, slot_out_orig;
 	struct cptr_cache *cache;
 	char *p;
-	struct cnode *check;
-	struct cnode *check1;
 
 	/* Initialize a cspace */
 	csp = malloc(1 * sizeof(*csp));
@@ -78,18 +75,12 @@ int testcase1()
 	}
 
 	/* Verification if capability is properly inserted in the cspace. */
-	ret = cap_cnode_get(csp, slot_out, &check);
+	ret = cap_cnode_verify(csp, slot_out);
 	if (ret < 0) {
 		CAP_ERR("Lookup failed");
 		goto fail;
-	} else {
-		if (check->object == p)
-			printf("Capability Addition & Lookup Passed\n");
-		else
-			printf("Capability Addition & Lookup Failed!!!\n");
-	}
-	/* Release cnode Lock */
-	cap_cnode_put(check);
+	} else
+		printf("Capability Addition & Lookup Passed\n");
 
 	/* Capability deletion from cspace. 
 	 */
@@ -98,19 +89,11 @@ int testcase1()
 
 	/*Lookup after deleting capability. It should Fail!!
 	 */
-	ret = cap_cnode_get(csp, slot_out, &check1);
+	ret = cap_cnode_verify(csp, slot_out);
 	if (ret < 0) {
 		CAP_ERR("Lookup failed\n");
 		printf("Capability Deletion Passed\n");
-	} else {
-		if (check1->object == p)
-			printf("Screwed!!!\n");
-		else
-			printf("Yippiee!!!\n");
 	}
-	/* Release cnode Lock */
-	if (check1)
-		cap_cnode_put(check1);
 
 	/* Free the cspace 
 	 * Here we will destory the cspace.
@@ -143,12 +126,9 @@ int testcase_grant()
 {
 	int ret;
 	struct cspace *scsp, *dcsp;
-	struct cnode *cnode;
 	cptr_t sslot, dslot;
 	struct cptr_cache *scache, *dcache;
 	char *p;
-	struct cnode *scnode;
-	struct cnode *dcnode;
 
 	/* Initialize Source cspace */
 	scsp = malloc(1 * sizeof(*scsp));
@@ -207,20 +187,15 @@ int testcase_grant()
 		goto fail2;
 	}
 
-	ret = cap_cnode_get(dcsp, dslot, &dcnode);
+	ret = cap_cnode_verify(dcsp, dslot);
 	if (ret < 0) {
 		CAP_ERR("Lookup failed\n");
 		goto fail2;
 	} else {
-		if (dcnode->object == p) {
-			printf("Capability granted successfully from Cspace[%p] at slot 0x%lx \
-			to Cspace[%p] at slot 0x%lx\n", scsp, cptr_val(sslot),
-			       dcsp, cptr_val(dslot));
-		} else
-			printf("Failed to grant capability!!\n");
+		printf("Capability granted successfully from Cspace[%p] at slot 0x%lx \
+				to Cspace[%p] at slot 0x%lx\n", scsp, cptr_val(sslot),
+				dcsp, cptr_val(dslot));
 	}
-	/* Release cnode Lock */
-	cap_cnode_put(dcnode);
 
  fail2:
 	cap_destroy_cspace(dcsp);
@@ -272,13 +247,11 @@ int grant(struct cspace *scsp, struct cspace *dcsp, cptr_t sslot, cptr_t dslot) 
  */
 int get_cnode(struct cspace *csp, cptr_t sslot) {
 	int ret = 0;
-	struct cnode *dcnode;
 
-	ret = cap_cnode_get(csp, sslot, &dcnode);
+	ret = cap_cnode_verify(csp, sslot);
 	if (ret < 0)
 		CAP_ERR("Destination CSPACE Lookup failed\n");
-	/* Release cnode Lock */
-	cap_cnode_put(dcnode);
+	
 	return ret;
 }
 
@@ -308,7 +281,6 @@ int testcase_revoke() {
 	struct cspace *scsp, *dcsp;
 	struct cptr_cache *scache, *dcache;
 	cptr_t sslot, dslot;
-	struct cnode *scnode = NULL;
 
 	printf("\nTestcase : Capability Revocation\n");
 	/* 1st CSPACE */
@@ -365,10 +337,9 @@ int testcase_revoke() {
 	ret = revoke(scsp, sslot, scache);
 	if (ret < 0)
 		goto fail2;
-	ret = cap_cnode_get(dcsp, dslot, &scnode);
+	ret = cap_cnode_verify(dcsp, dslot);
 	if (ret < 0) {
 		printf("\nTestcase Capability Revocation Passed\n");
-		ret = 0;
 		goto fail2;
 	}
 	printf("\nTestcase capability Revocation Failed\n");

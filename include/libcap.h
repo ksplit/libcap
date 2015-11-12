@@ -140,19 +140,14 @@ int cap_revoke(struct cspace *cspace, cptr_t c);
  */
 void cap_destroy_cspace(struct cspace *cspace);
 /**
- * Looks up and locks cnode at c in cspace.
+ * Looks up cnode at cap in cspace.
  *
- * ** Must match with lcd_cnode_put. **
+ * ** Frees the cnode lock itself without relying on user.
  *
  * ** Interrupts and preemption *are not* disabled. **
  *    (so we can easily get out of deadlocks while debugging)
  */
-int cap_cnode_get(struct cspace *cspace, cptr_t cap, struct cnode **cnode);
-/**
- * Unlocks cnode.
- */
-void cap_cnode_put(struct cnode *c);
-
+int cap_cnode_verify(struct cspace *cspace, cptr_t cap);
 /**
  * For now, put debug macros in the user-accessible part; convenient.
  */
