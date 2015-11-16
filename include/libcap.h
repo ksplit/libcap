@@ -57,11 +57,27 @@ struct cap_type_ops {
 #define CAP_TYPE_MAX 256
 #endif
 
+/**
+ * Initalize the cptr cache subsystem
+ */
 void cptr_init(void);
-int cptr_alloc(struct cptr_cache *cptr_cache, cptr_t *free_cptr);
-void cptr_free(struct cptr_cache *cptr_cache, cptr_t c);
+/**
+ * Allocate and initialize a new cptr_cache.
+ */
 int cptr_cache_init(struct cptr_cache **c_out);
+/**
+ * Free and delete a cptr_cache
+ */
 void cptr_cache_destroy(struct cptr_cache *c);
+/**
+ * Allocate a new cptr in the given cptr_cache. The cptr is stored in the memory
+ * pointed to by 'free_cptr'.
+ */
+int cptr_alloc(struct cptr_cache *cptr_cache, cptr_t *free_cptr);
+/**
+ * Remove the value pointed to by the
+ */
+void cptr_free(struct cptr_cache *cptr_cache, cptr_t c);
 
 /**
  * Initializes caches, etc. in capability subsystem. Called when microkernel
