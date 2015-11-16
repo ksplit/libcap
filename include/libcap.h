@@ -165,6 +165,11 @@ void cap_destroy_cspace(struct cspace *cspace);
  */
 int cap_cnode_verify(struct cspace *cspace, cptr_t cap);
 /**
+ * Return the cptr that points to this cnode.
+ */
+cptr_t cap_cnode_cptr(struct cnode *cnode);
+
+/**
  * For now, put debug macros in the user-accessible part; convenient.
  */
 extern int cap_debug_level;

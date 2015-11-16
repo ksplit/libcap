@@ -450,6 +450,8 @@ int cap_cnode_verify(struct cspace *cspace, cptr_t c)
 	return ret;
 }
 
+cptr_t cap_cnode_cptr(struct cnode *cnode) { return cnode->cptr; }
+
 int cap_insert(struct cspace *cspace, cptr_t c, void *object, cap_type_t type)
 {
 	struct cnode *cnode;
@@ -474,6 +476,7 @@ int cap_insert(struct cspace *cspace, cptr_t c, void *object, cap_type_t type)
 	cnode->cspace = cspace;
 	cnode->object = object;
 	cnode->type = type;
+	cnode->cptr = c;
 	/*
 	 * Set up cdt
 	 */

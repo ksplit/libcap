@@ -22,6 +22,7 @@ enum allocation_state {
 #endif
 
 struct cnode {
+	cptr_t cptr;
 	cap_mutex_t lock;
 	/*
 	 * cnode data
