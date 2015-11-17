@@ -1,3 +1,8 @@
+Somehow spinlock implemetation was not working on iOS. So changed locking
+from spinlock to mutex.
+Not required for Linux.
+Maybe required for Android. Found similar dicussion on forum.
+
 diff --git a/include/libcap_internal_user.h b/include/libcap_internal_user.h
 index 1144994..fab2061 100644
 --- a/include/libcap_internal_user.h
