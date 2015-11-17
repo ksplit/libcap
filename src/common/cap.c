@@ -231,6 +231,11 @@ int cap_init_cspace(struct cspace *cspace)
 	return 0;
 }
 
+inline void cap_cspace_setowner(struct cspace *cspace, void * owner) {
+    cspace->owner = owner;
+}
+inline void* cap_cspace_getowner(struct cspace *cspace) { return cspace->owner; }
+
 static int update_cnode_table(struct cspace *cspace,
 			      struct cnode_table *old, unsigned long level_id,
 			      bool alloc, struct cnode_table **new)

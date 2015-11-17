@@ -124,6 +124,14 @@ void cap_delete(struct cspace *cspace, cptr_t c);
  */
 int cap_init_cspace(struct cspace *cspace);
 /**
+ * Set the "owner" field of the given cspace
+ */
+void cap_cspace_setowner(struct cspace *cspace, void * owner);
+/**
+ * Get the "owner" field of the given cspace
+ */
+void* cap_cspace_getowner(struct cspace *cspace);
+/**
  * Inserts object data into cspace at cnode pointed at by c.
  */
 int cap_insert(struct cspace *cspace, cptr_t c, void *object, cap_type_t type);
