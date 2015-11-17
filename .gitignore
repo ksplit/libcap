@@ -1,0 +1,31 @@
+# Ignore most files made by `bootstrap'.
+Makefile.in
+aclocal.m4
+autom4te.cache
+config.h.in
+configure
+src/kernel/Makefile.in
+src/user/Makefile.in
+src/Makefile.in
+include/Makefile.in
+Makefile.in
+test/kernel/Makefile.in
+test/user/Makefile.in
+test/Makefile.in
+
+# Ignore other files.
+config.log
+config.status
+*.Po
+*.Plo
+*.la
+*.lai
+*.a
+*.lo
+*.o
+*.so.*
+*.so
+*.out
+.depend
+*.pyc
+*~
