@@ -120,6 +120,16 @@ int cap_revoke(struct cspace *cspace, cptr_t c);
 void cap_delete(struct cspace *cspace, cptr_t c);
 
 /**
+ * Allocates a new cspace
+ */
+struct cspace * cap_alloc_cspace(void);
+
+/**
+ * Frees a cspace allocated with cap_alloc_cspace
+ */
+void cap_free_cspace(struct cspace *cspace);
+
+/**
  * Sets up cspace - initializes lock, root cnode table, etc.
  */
 int cap_init_cspace(struct cspace *cspace);

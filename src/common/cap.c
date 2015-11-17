@@ -173,6 +173,12 @@ static int make_empty_cnode_table(struct cspace *cspace, uint8_t level,
 	return -ENOMEM;
 }
 
+inline struct cspace* cap_alloc_cspace(void) {
+    return cap_zalloc(1, sizeof(struct cspace));
+}
+
+inline void cap_free_cspace(struct cspace *cspace) { cap_free(cspace); }
+
 /**
  * Initializes the cspace's fields.
  */
