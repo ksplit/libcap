@@ -54,7 +54,7 @@ void cap_fini(void)
 	cap_cache_destroy(cdt_cache.cdt_root_cache);
 }
 
-cap_type_t cap_register_type(cap_type_t type, struct cap_type_ops *ops)
+cap_type_t cap_register_type(cap_type_t type, const struct cap_type_ops *ops)
 {
 	int i, ret;
 
@@ -173,6 +173,12 @@ static int make_empty_cnode_table(struct cspace *cspace, uint8_t level,
 	return -ENOMEM;
 }
 
+inline struct cspace* cap_alloc_cspace(void) {
+    return cap_zalloc(1, sizeof(struct cspace));
+}
+
+inline void cap_free_cspace(struct cspace *cspace) { cap_free(cspace); }
+
 /**
  * Initializes the cspace's fields.
  */
@@ -230,6 +236,11 @@ int cap_init_cspace(struct cspace *cspace)
 
 	return 0;
 }
+
+inline void cap_cspace_setowner(struct cspace *cspace, void * owner) {
+    cspace->owner = owner;
+}
+inline void* cap_cspace_getowner(struct cspace *cspace) { return cspace->owner; }
 
 static int update_cnode_table(struct cspace *cspace,
 			      struct cnode_table *old, unsigned long level_id,

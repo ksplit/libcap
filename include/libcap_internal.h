@@ -126,7 +126,8 @@ static inline void cap_clear_bit(int nr, volatile unsigned long *addr)
 }
 
 /**
- * Memory.
+ * Allocates a chunk of memory of 'nmemb * size' bytes. Returns NULL if the
+ * allocation fails.
  */
 static inline void *cap_zalloc(size_t nmemb, size_t size)
 {

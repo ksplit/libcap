@@ -97,7 +97,7 @@ void cap_fini(void);
  * -EADDRINUSE.  If there are no types remaining or you exceed
  * CAP_TYPE_MAX, this returns -ENOMEM .
  */
-cap_type_t cap_register_type(cap_type_t type, struct cap_type_ops *ops);
+cap_type_t cap_register_type(cap_type_t type, const struct cap_type_ops *ops);
 /**
  * Revoke all derived capabilities.
  *
@@ -120,9 +120,27 @@ int cap_revoke(struct cspace *cspace, cptr_t c);
 void cap_delete(struct cspace *cspace, cptr_t c);
 
 /**
+ * Allocates a new cspace. If no memory could be allocated, returns NULL.
+ */
+struct cspace * cap_alloc_cspace(void);
+
+/**
+ * Frees a cspace allocated with `cap_alloc_cspace`.
+ */
+void cap_free_cspace(struct cspace *cspace);
+
+/**
  * Sets up cspace - initializes lock, root cnode table, etc.
  */
 int cap_init_cspace(struct cspace *cspace);
+/**
+ * Set the "owner" field of the given cspace
+ */
+void cap_cspace_setowner(struct cspace *cspace, void * owner);
+/**
+ * Get the "owner" field of the given cspace
+ */
+void* cap_cspace_getowner(struct cspace *cspace);
 /**
  * Inserts object data into cspace at cnode pointed at by c.
  */
