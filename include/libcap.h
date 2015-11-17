@@ -97,7 +97,7 @@ void cap_fini(void);
  * -EADDRINUSE.  If there are no types remaining or you exceed
  * CAP_TYPE_MAX, this returns -ENOMEM .
  */
-cap_type_t cap_register_type(cap_type_t type, struct cap_type_ops *ops);
+cap_type_t cap_register_type(cap_type_t type, const struct cap_type_ops *ops);
 /**
  * Revoke all derived capabilities.
  *

@@ -54,7 +54,7 @@ void cap_fini(void)
 	cap_cache_destroy(cdt_cache.cdt_root_cache);
 }
 
-cap_type_t cap_register_type(cap_type_t type, struct cap_type_ops *ops)
+cap_type_t cap_register_type(cap_type_t type, const struct cap_type_ops *ops)
 {
 	int i, ret;
 
