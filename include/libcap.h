@@ -120,12 +120,12 @@ int cap_revoke(struct cspace *cspace, cptr_t c);
 void cap_delete(struct cspace *cspace, cptr_t c);
 
 /**
- * Allocates a new cspace
+ * Allocates a new cspace. If no memory could be allocated, returns NULL.
  */
 struct cspace * cap_alloc_cspace(void);
 
 /**
- * Frees a cspace allocated with cap_alloc_cspace
+ * Frees a cspace allocated with `cap_alloc_cspace`.
  */
 void cap_free_cspace(struct cspace *cspace);
 
