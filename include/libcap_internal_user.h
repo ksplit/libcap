@@ -17,6 +17,10 @@
 #include <string.h>
 #include <errno.h>
 
+#ifdef __APPLE__
+#include "compat_internal/osx_user.h"
+#endif
+
 /**
  * Mutex support.  Follow kernel return convention.
  */
@@ -85,6 +89,8 @@ static inline void __cap_cache_free(cap_cache_t *cache, void *obj)
 {
 	g_slice_free1(cache->size, obj);
 }
+
+
 
 /**
  * Spinlocks.  An array of pthread spinlocks.  We have one for each L1
