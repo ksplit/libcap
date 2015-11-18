@@ -50,7 +50,7 @@ void __cptr_init()
 
 	__spinlocks = calloc(__cache_lines, sizeof(*__spinlocks));
 	for (i = 0; i < __cache_lines; ++i) {
-		pthread_spin_init(&__spinlocks[i], 0);
+		pthread_spin_init(&__spinlocks[i], PTHREAD_PROCESS_PRIVATE);
 	}
 
 	return;
