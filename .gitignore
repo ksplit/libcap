@@ -29,3 +29,8 @@ config.status
 .depend
 *.pyc
 *~
+
+# Ignore vim swap files
+*.swp
+*.swi
+*.swo
