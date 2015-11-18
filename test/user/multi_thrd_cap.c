@@ -257,10 +257,10 @@ int main()
 
 	cap_mutex_init(&global_user_lock);
 
-	scsp = malloc(1 * sizeof(*scsp));
+	scsp = cap_alloc_cspace();
 	if (!scsp) {
-		perror("malloc cspace\n");
-		exit(1);
+		printf("Source Cspace allocation failed!\n");
+		goto fail2;
 	}
 
 	ret = cap_init_cspace(scsp);
@@ -270,28 +270,28 @@ int main()
 	}
 
 	/* 2nd CSPACE */	
-	dcsp = malloc(1 * sizeof(*dcsp));
+	dcsp = cap_alloc_cspace();
 	if (!dcsp) {
-		perror("malloc cspace\n");
-		exit(1);
+		printf("Destination Cspace allocation failed!\n");
+		goto fail1;
 	}
 
 	ret = cap_init_cspace(dcsp);
 	if (ret < 0) {
-	printf("Cspace Initialization failed\n");
-		goto fail2;
+		printf("Cspace Initialization failed\n");
+		goto fail1;
 	}
 
 	ret = cptr_cache_init(&scache);
 	if (ret < 0) {
 		printf("cptr cache Initialization failed\n");
-		goto fail1;
+		goto fail;
 	}
 
 	ret = cptr_cache_init(&dcache);
 	if (ret < 0) {
 		printf("cptr cache Initialization failed\n");
-		goto fail1;
+		goto fail;
 	}
 
 	for (i = 0; i < SLOTS; i++) {
@@ -318,10 +318,8 @@ int main()
 			ret = pthread_create(&threads[i], NULL, thread1_func,
 					     (void *)it);
 		}
-		if (ret < 0) {
-			perror("pthread create\n");
-			goto fail1;
-		}
+		if (ret < 0)
+			printf("Error creating thread [%d]\n", i);
 	}
 
 	for (i = 0; i < THREAD_COUNT; i++) {
@@ -335,8 +333,12 @@ int main()
  fail1:
 	cap_destroy_cspace(scsp);
  fail2:
-
+	if (dcsp)
+		cap_free_cspace(dcsp);
+	if (scsp)
+		cap_free_cspace(scsp);
 	cptr_fini();
 	cap_fini();
+
 	return ret;
 }

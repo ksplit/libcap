@@ -40,18 +40,19 @@ struct cap_type_ops stringobj_ops = {
 int testcase1()
 {
 	int ret = 0;
-	struct cspace *csp;
+	struct cspace *csp = NULL;
 	cptr_t slot_out, slot_out_orig;
 	struct cptr_cache *cache;
 	char *p;
 
 	/* Initialize a cspace */
-	csp = malloc(1 * sizeof(*csp));
+	csp = cap_alloc_cspace();
 	printf("\nTestCase : Cspace Initialization.\n");
 	ret = cap_init_cspace(csp);
-	if (ret < 0)
+	if (ret < 0) {
 		printf("Cspace Initialization Failed!!\n");
-	else
+		goto fail1;
+	} else
 		printf("Cspace Initialization Passed Address:%p \n", csp);
 
 	/* cptr cache intialization. This is totally users stuff */
@@ -98,7 +99,7 @@ int testcase1()
 	/* Free the cspace 
 	 * Here we will destory the cspace.
 	 * We will confirm the deletion after making a
-	 * __lcd_cap_insert call. If the call fails, that means
+	 * cap_insert call. If the call fails, that means
 	 * cspace has been deleted successfully.
 	 */
 	printf("\nTestCase : Delete Cspace.\n");
@@ -112,10 +113,13 @@ int testcase1()
 
 	if (ret) {
 		printf("Cspace Deletion Passed\n");
-		goto fail;
+		goto fail1;
 	}
- fail:
-	/* Free memory stuff. */
+fail:
+	cap_destroy_cspace(csp);
+fail1:
+	if (csp)
+		cap_free_cspace(csp);
 	return ret;
 }
 
@@ -125,17 +129,19 @@ int testcase1()
 int testcase_grant()
 {
 	int ret;
-	struct cspace *scsp, *dcsp;
+	struct cspace *scsp = NULL, *dcsp = NULL;
 	cptr_t sslot, dslot;
 	struct cptr_cache *scache, *dcache;
 	char *p;
 
 	/* Initialize Source cspace */
-	scsp = malloc(1 * sizeof(*scsp));
+	scsp = cap_alloc_cspace();
+	if (!scsp)
+		return -1;
 	ret = cap_init_cspace(scsp);
 	if (ret < 0) {
 		printf("Cspace Setup Failed\n");
-		return ret;
+		goto fail;
 	}
 	printf("Source Cspace Initilaized: Address=%p\n", scsp);
 
@@ -161,11 +167,13 @@ int testcase_grant()
 	printf("Added capability [%p] to Source cspace\n", p);
 
 	/* Setup destination cspace */
-	dcsp = malloc(1 * sizeof(*dcsp));
+	dcsp = cap_alloc_cspace();
+	if (!dcsp)
+		goto fail1;
 	ret = cap_init_cspace(dcsp);
 	if (ret < 0) {
 		printf("Cspace Setup Failed\n");
-		return ret;
+		goto fail1;
 	}
 	printf("Destination Cspace Initilaized: Address=%p\n", dcsp);
 
@@ -197,10 +205,16 @@ int testcase_grant()
 				dcsp, cptr_val(dslot));
 	}
 
- fail2:
+fail2:
 	cap_destroy_cspace(dcsp);
- fail1:
+fail1:
 	cap_destroy_cspace(scsp);
+fail:
+	if (dcsp)
+		cap_free_cspace(dcsp);
+	if (scsp)
+		cap_free_cspace(scsp);
+
 	return ret;
 }
 
@@ -278,21 +292,21 @@ int revoke(struct cspace *csp, cptr_t sslot, struct cptr_cache *scache) {
  */
 int testcase_revoke() {
 	int ret = 0;
-	struct cspace *scsp, *dcsp;
+	struct cspace *scsp = NULL, *dcsp = NULL;
 	struct cptr_cache *scache, *dcache;
 	cptr_t sslot, dslot;
 
 	printf("\nTestcase : Capability Revocation\n");
 	/* 1st CSPACE */
-	scsp = malloc(1 * sizeof(*scsp));
+	scsp = cap_alloc_cspace();
         if (!scsp) {
-                perror("malloc cspace\n");
-                exit(1);
+                perror("Source Cspace allocation failed\n");
+                goto fail;
         }
         ret = cap_init_cspace(scsp);
         if (ret < 0) {
                 printf("Cspace Initialization failed\n");
-                goto fail1;
+                goto fail;
         }
         ret = cptr_cache_init(&scache);
         if (ret < 0) {
@@ -301,7 +315,7 @@ int testcase_revoke() {
         }
 
 	/* 2nd CSPACE */
-        dcsp = malloc(1 * sizeof(*dcsp));
+        dcsp = cap_alloc_cspace();
         if (!dcsp) {
                 perror("malloc cspace\n");
                 goto fail1;
@@ -309,7 +323,7 @@ int testcase_revoke() {
         ret = cap_init_cspace(dcsp);
         if (ret < 0) {
                 printf("Cspace Initialization failed\n");
-                goto fail2;
+                goto fail1;
         }
         ret = cptr_cache_init(&dcache);
         if (ret < 0) {
@@ -320,12 +334,12 @@ int testcase_revoke() {
 	ret = cptr_alloc(scache, &sslot);
         if (ret < 0) {
                 printf("cptr aloocation failed\n");
-                goto fail;
+                goto fail2;
         }
 	ret = cptr_alloc(dcache, &dslot);
 	if (ret < 0) {
                 printf("cptr aloocation failed\n");
-		goto fail;
+		goto fail2;
 	}
 
 	ret = insert(scsp, sslot);
@@ -349,6 +363,10 @@ fail2:
 fail1:
 	cap_destroy_cspace(scsp);
 fail:
+	if (dcsp)
+		cap_free_cspace(dcsp);
+	if (scsp)
+		cap_free_cspace(scsp);
 	return ret;
 }
 
