@@ -16,6 +16,7 @@
 #include "list.h"
 #include <string.h>
 #include <errno.h>
+#include <unistd.h>
 
 #ifdef __APPLE__
 #include "compat_internal/osx_user.h"
@@ -116,7 +117,7 @@ static inline void __cap_atomic_spin_lock(void *addr)
 	pthread_spin_lock(__addr_to_spinlock(addr));
 }
 
-static inline __cap_atomic_spin_unlock(void *addr)
+static inline void __cap_atomic_spin_unlock(void *addr)
 {
 	pthread_spin_unlock(__addr_to_spinlock(addr));
 }

@@ -59,6 +59,11 @@ struct cdt_root_node {
 	enum allocation_state state;
 };
 
+/* The init and finish routines are defined in their own compoents. The
+ * implementations differ between the kernel and userspace. */
+void __cptr_init(void);
+void __cptr_fini(void);
+
 /**
  * Generic mutex wrappers.  Defined by platform-specific code.
  */
