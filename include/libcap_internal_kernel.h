@@ -84,7 +84,7 @@ static inline void __cap_cache_free(cap_cache_t *cache, void *obj)
 #define __cap_zalloc(nmemb,size) kzalloc((nmemb)*(size),GFP_KERNEL)
 #define __cap_free(addr) kfree(addr)
 
-#define __cptr_init()
-#define __cptr_fini()
+static inline void __cptr_init(void) { }
+static inline void __cptr_fini(void) { }
 
 #endif /* __LIBCAP_INTERNAL_KERNEL_H__ */
