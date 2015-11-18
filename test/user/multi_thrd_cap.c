@@ -133,7 +133,7 @@ void *thread1_func(void *arg)
 	}
 
  fail:
-	return;
+	return NULL;
 }
 
 void *thread_revoke(void* arg)

@@ -272,7 +272,7 @@ int get_cnode(struct cspace *csp, cptr_t sslot) {
 /* 
  * Capability Revoke
  */
-int revoke(struct cspace *csp, cptr_t sslot, struct cptr_cache *scache) {
+int do_revoke(struct cspace *csp, cptr_t sslot, struct cptr_cache *scache) {
 	int ret = 0;
 
 	ret = cap_revoke(csp, sslot);
@@ -348,7 +348,7 @@ int testcase_revoke() {
 	ret = grant(scsp, dcsp, sslot, dslot);
 	if (ret < 0)
 		goto fail2;
-	ret = revoke(scsp, sslot, scache);
+	ret = do_revoke(scsp, sslot, scache);
 	if (ret < 0)
 		goto fail2;
 	ret = cap_cnode_verify(dcsp, dslot);
