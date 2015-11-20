@@ -188,6 +188,24 @@ int cap_cnode_verify(struct cspace *cspace, cptr_t cap);
 cptr_t cap_cnode_cptr(struct cnode *cnode);
 
 /**
+ * Return the cnode that this cptr points to in the given cspace. Acquires
+ * a lock to the cnode. Returns zero on success. Make sure to call
+ * cap_cnode_put after every cap_cnode_get.
+ */
+int cap_cnode_get(struct cspace *cspace, cptr_t cptr, struct cnode **cnode);
+
+/**
+ * Unlock the cnode. Call this on every cnode you've called
+ * cap_cnode_get on.
+ */
+void cap_cnode_put(struct cnode *cnode);
+
+/**
+ * Get the object stored at this cnode.
+ */
+void* cap_cnode_object(struct cnode *cnode);
+
+/**
  * For now, put debug macros in the user-accessible part; convenient.
  */
 extern int cap_debug_level;
