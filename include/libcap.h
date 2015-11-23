@@ -206,6 +206,11 @@ void cap_cnode_put(struct cnode *cnode);
 void* cap_cnode_object(struct cnode *cnode);
 
 /**
+ * Get the type of this cnode
+ */
+cap_type_t cap_cnode_type(struct cnode *cnode);
+
+/**
  * For now, put debug macros in the user-accessible part; convenient.
  */
 extern int cap_debug_level;

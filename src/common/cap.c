@@ -450,6 +450,7 @@ void cap_cnode_put(struct cnode *cnode)
 }
 
 void* cap_cnode_object(struct cnode *cnode) { return cnode->object; }
+cap_type_t cap_cnode_type(struct cnode *cnode) { return cnode->type; }
 
 int cap_cnode_verify(struct cspace *cspace, cptr_t c)
 {
