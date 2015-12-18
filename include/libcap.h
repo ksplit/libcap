@@ -211,6 +211,11 @@ void* cap_cnode_object(struct cnode *cnode);
 cap_type_t cap_cnode_type(struct cnode *cnode);
 
 /**
+ * Get the cspace this cnode is in.
+ */
+struct cspace * cap_cnode_cspace(struct cnode *cnode);
+
+/**
  * For now, put debug macros in the user-accessible part; convenient.
  */
 extern int cap_debug_level;
