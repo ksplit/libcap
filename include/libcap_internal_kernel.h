@@ -10,6 +10,7 @@
 #include "libcap_types.h"
 
 #define strdup(str) kstrdup(str,GFP_KERNEL)
+#define free(ptr) kfree(ptr)
 
 /**
  * Mutex support.
