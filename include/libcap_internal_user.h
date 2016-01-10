@@ -70,9 +70,13 @@ static inline cap_cache_t *__cap_gslice_fakeslab_create(size_t size)
 #define __cap_cache_create2(__struct,name) __cap_gslice_fakeslab_create(sizeof(struct __struct))
 static inline void __cap_cache_destroy(cap_cache_t * cache)
 {
-	/* Glib will just keep the pool around, I guess.  I assume it
+	/* 
+	 * Glib will just keep the pool around, I guess.  I assume it
 	 * shrinks it periodically when g_slice_free1() is called.
+	 *
+	 * Free our fake slab cache.
 	 */
+	free(cache);
 	return;
 }
 

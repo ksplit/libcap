@@ -51,7 +51,17 @@ int cap_init(void)
 
 void cap_fini(void)
 {
+	int i;
+	/*
+	 * Destroy cdt cache
+	 */
 	cap_cache_destroy(cdt_cache.cdt_root_cache);
+	/*
+	 * Free up any strdup'd names in the cap_types array
+	 */
+	for (i = CAP_TYPE_FIRST_NONBUILTIN; i < CAP_TYPE_MAX; ++i)
+		if (cap_types[i].name)
+			free(cap_types[i].name);
 }
 
 cap_type_t cap_register_type(cap_type_t type, const struct cap_type_ops *ops)
