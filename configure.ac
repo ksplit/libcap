@@ -37,6 +37,9 @@ AC_TYPE_UINT8_T
 AC_FUNC_MALLOC
 AC_CHECK_FUNCS([memset strdup])
 
+# Check size of unsigned long (determines cspace sizing, cptr ABI, and so on)
+AC_CHECK_SIZEOF([unsigned long])
+
 #
 # Check glib.
 #
