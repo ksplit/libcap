@@ -104,24 +104,5 @@ typedef struct {
 #define CAP_CPTR_NULL ((cptr_t){0})
 
 
-/* CPTR CACHE -------------------------------------------------- */
-
-
-#if (CAP_CSPACE_DEPTH == 4)
-
-struct cptr_cache {
-	/* level 0 bitmap */
-	unsigned long bmap0[CAP_BITS_TO_LONGS(CAP_CSPACE_SLOTS_IN_LEVEL(0))];
-	/* level 1 bitmap */
-	unsigned long bmap1[CAP_BITS_TO_LONGS(CAP_CSPACE_SLOTS_IN_LEVEL(1))];
-	/* level 2 bitmap */
-	unsigned long bmap2[CAP_BITS_TO_LONGS(CAP_CSPACE_SLOTS_IN_LEVEL(2))];
-	/* level 3 bitmap */
-	unsigned long bmap3[CAP_BITS_TO_LONGS(CAP_CSPACE_SLOTS_IN_LEVEL(3))];
-};
-
-#else
-#error "You need to adjust the cptr cache def."
-#endif
 
 #endif				/* __LIBCAP_TYPES_H__ */

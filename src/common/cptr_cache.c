@@ -68,6 +68,10 @@ int cptr_cache_init(struct cptr_cache *cache)
 	int i;
 	unsigned long *bmap;
 	/*
+	 * Init lock
+	 */
+	cap_mutex_init(&cache->lock);
+	/*
 	 * Zero out the bitmaps. (The caller may not have
 	 * necessarily used zalloc.)
 	 */
@@ -119,7 +123,13 @@ int cptr_alloc(struct cptr_cache *cptr_cache, cptr_t *free_cptr)
 	unsigned long idx;
 	int size;
 	cptr_t result;
-
+	/*
+	 * Lock cache ********************
+	 */
+	cap_mutex_lock(&cptr_cache->lock);
+	/*
+	 * Search
+	 */
 	depth = 0;
 	do {
 		bmap = cap_cptr_cache_bmap_for_level(cptr_cache, depth);
@@ -134,7 +144,7 @@ int cptr_alloc(struct cptr_cache *cptr_cache, cptr_t *free_cptr)
 		 */
 		CAP_ERR("out of cptrs");
 		ret = -ENOMEM;
-		goto fail1;
+		goto unlock;
 	}
 	/*
 	 * Found one; dec depth back to what it was, and encode
@@ -145,9 +155,14 @@ int cptr_alloc(struct cptr_cache *cptr_cache, cptr_t *free_cptr)
 	cap_cptr_set_level(&result, depth);
 	*free_cptr = result;
 
-	return 0;
+	ret = 0;
+	goto unlock;
 
- fail1:
+unlock:
+	/*
+	 * Unlock cache ********************
+	 */
+	cap_mutex_unlock(&cptr_cache->lock);
 	return ret;
 }
 
@@ -157,6 +172,10 @@ void cptr_free(struct cptr_cache *cptr_cache, cptr_t c)
 	unsigned long bmap_idx;
 	unsigned long level;
 	unsigned long mask;
+	/*
+	 * Lock cache ********************
+	 */
+	cap_mutex_lock(&cptr_cache->lock);
 	/*
 	 * Get the correct level bitmap
 	 */
@@ -175,6 +194,10 @@ void cptr_free(struct cptr_cache *cptr_cache, cptr_t c)
 	 * Clear the bit in the bitmap
 	 */
 	cap_clear_bit(bmap_idx, bmap);
+	/*
+	 * Unlock cache ********************
+	 */
+	cap_mutex_unlock(&cptr_cache->lock);
 
 	return;
 }

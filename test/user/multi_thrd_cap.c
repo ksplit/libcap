@@ -64,6 +64,7 @@ static struct cptr_cache *scache;
 static struct cptr_cache *dcache;
 static cptr_t sslot_arr[SLOTS];
 static cptr_t dslot_arr[SLOTS];
+static int revoke_signal[SLOTS];
 static int track = 0;
 static pthread_t threads[THREAD_COUNT];
 static cap_mutex_t global_user_lock;
@@ -84,7 +85,8 @@ int insert(struct cspace *csp, cptr_t slot)
 		perror("malloc\n");
 		return 1;
 	}
-	snprintf(p, 32, "stringobj%d", global_stringobj_counter);
+	/* using global could lead to race */
+	snprintf(p, 32, "stringobj%d", next); 
 
 	ret = cap_insert(csp, slot, p, stringobj_type);
 	if (ret < 0) {
@@ -151,12 +153,10 @@ void *thread_revoke(void* arg)
 		printf("Thread Revoke : slot %d 0x%lx\n",
 		       i, cptr_val(sslot_arr[i]));
 		/* Wait for both insert and grant before revoke */
-		if (cptr_is_null(sslot_arr[i])
-		       || cptr_is_null(dslot_arr[i])) {
-			printf("Thread Revoke : null cptr slot %i (0x%lx,0x%lx), stalling...\n",
-			       i,cptr_val(sslot_arr[i]),cptr_val(dslot_arr[i]));
-			while (cptr_is_null(sslot_arr[i])
-			       || cptr_is_null(dslot_arr[i])) {
+		if (!revoke_signal[i]) {
+			printf("Thread Revoke : get on %i not done yet, stalling...\n",
+				i);
+			while (!revoke_signal[i]) {
 			    STALL();
 			}
 			printf("Thread Revoke : unstalled cptr slot %i (0x%lx,0x%lx)\n",
@@ -234,6 +234,7 @@ void *thread_get(void * arg) {
 			CAP_ERR("Destination CSPACE Lookup failed\n");
 		else
 			printf("Lookup PASS\n");
+		revoke_signal[i] = 1;
 		i++;
 	}
 }

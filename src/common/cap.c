@@ -257,6 +257,7 @@ static int update_cnode_table(struct cspace *cspace,
 			      bool alloc, struct cnode_table **new)
 {
 	unsigned long index;
+	int ret;
 	/*
 	 * The first half of the slots contain caps, the second half table
 	 * pointers. Skip over cap slots by adding half the number of slots
@@ -278,7 +279,11 @@ static int update_cnode_table(struct cspace *cspace,
 		 *
 		 * Allocate and init a new cnode table
 		 */
-		make_empty_cnode_table(cspace, old->table_level + 1, new);
+		ret = make_empty_cnode_table(cspace, old->table_level + 1, new);
+		if (ret) {
+			CAP_ERR("Error making empty cnode table\n");
+			return ret;
+		}
 		/*
 		 * Set up cnode that points to it
 		 */
@@ -290,6 +295,11 @@ static int update_cnode_table(struct cspace *cspace,
 		/*
 		 * cnode free, invalid, etc.
 		 */
+		CAP_DEBUG(CAP_DEBUG_ERR,
+			"Error in cspace traversal: cnode contains%s, and we are%s trying to alloc\n",
+			old->cnode[level_id].type == CAP_TYPE_CNODE ?
+			" a pointer to the next level" : " has unexpected type (not a pointer to a cnode in the next level)",
+			alloc ? "" : " not");
 		return -EINVAL;	/* signal error in look up */
 	}
 }
@@ -324,7 +334,7 @@ static int find_cnode(struct cspace *cspace, struct cnode_table *old,
 		/*
 		 * invalid indexing, etc.
 		 */
-		CAP_DEBUG(1,
+		CAP_DEBUG(CAP_DEBUG_ERR,
 			"Error in lookup: cnode is %s, and we are%s trying to alloc\n",
 			old->cnode[level_id].type == CAP_TYPE_FREE ?
 				"free" : "occupied",
@@ -386,8 +396,10 @@ static int __cap_cnode_lookup(struct cspace *cspace, cptr_t c, bool alloc,
 	/*
 	 * If cptr is null, fail
 	 */
-	if (cptr_is_null(c))
+	if (cptr_is_null(c)) {
+		CAP_DEBUG(CAP_DEBUG_MSG, "cptr is null, lookup aborted\n");
 		return -EINVAL;
+	}
 
 	/*
 	 * Initialize to root cnode table
@@ -434,7 +446,8 @@ static int __cap_cnode_get(struct cspace *cspace, cptr_t c,
 	}
 	ret = __cap_cnode_lookup(cspace, c, alloc, cnode);
 	if (ret) {
-		ret = -ENOMEM;
+		CAP_DEBUG(CAP_DEBUG_MSG,
+			"cnode lookup failed with ret = %d\n", ret)
 		goto fail2;
 	}
 

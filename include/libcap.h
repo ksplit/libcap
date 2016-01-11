@@ -79,6 +79,9 @@ extern int cap_debug_level;
 
 /* CPTRs -------------------------------------------------- */
 
+#include "libcap_internal.h" /* temporary hack */
+
+
 /**
  * __cptr -- Construct a cptr from an unsigned long
  * @cptr: the unsigned long to use
@@ -185,6 +188,25 @@ static inline int cptr_is_null(cptr_t c)
 }
 
 /* CPTR CACHEs -------------------------------------------------- */
+
+#if (CAP_CSPACE_DEPTH == 4)
+
+struct cptr_cache {
+	/* lock */
+	cap_mutex_t lock;
+	/* level 0 bitmap */
+	unsigned long bmap0[CAP_BITS_TO_LONGS(CAP_CSPACE_SLOTS_IN_LEVEL(0))];
+	/* level 1 bitmap */
+	unsigned long bmap1[CAP_BITS_TO_LONGS(CAP_CSPACE_SLOTS_IN_LEVEL(1))];
+	/* level 2 bitmap */
+	unsigned long bmap2[CAP_BITS_TO_LONGS(CAP_CSPACE_SLOTS_IN_LEVEL(2))];
+	/* level 3 bitmap */
+	unsigned long bmap3[CAP_BITS_TO_LONGS(CAP_CSPACE_SLOTS_IN_LEVEL(3))];
+};
+
+#else
+#error "You need to adjust the cptr cache def."
+#endif
 
 /**
  * cptr_init -- Initalize the cptr cache subsystem

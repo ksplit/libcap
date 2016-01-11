@@ -1,4 +1,4 @@
 
 #include "libcap.h"
 
-int cap_debug_level = 1;
+int cap_debug_level = 5;
