@@ -29,6 +29,7 @@ struct cnode {
 	 */
 	cap_type_t type;
 	void *object;
+	void *metadata;
 	struct cspace *cspace;
 	/*
 	 * cdt data

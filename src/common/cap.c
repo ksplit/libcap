@@ -481,6 +481,16 @@ void* cap_cnode_object(struct cnode *cnode) { return cnode->object; }
 cap_type_t cap_cnode_type(struct cnode *cnode) { return cnode->type; }
 struct cspace * cap_cnode_cspace(struct cnode *cnode) { return cnode->cspace; }
 
+void* cap_cnode_metadata(struct cnode *cnode)
+{
+	return cnode->metadata;
+}
+
+void cap_cnode_set_metadata(struct cnode *cnode, void *metadata)
+{
+	cnode->metadata = metadata;
+}
+
 int cap_cnode_verify(struct cspace *cspace, cptr_t c)
 {
 	struct cnode *cnode;
@@ -673,6 +683,7 @@ static int try_delete_cnode(struct cspace *cspace, struct cnode *cnode)
 	cnode->type = CAP_TYPE_FREE;
 	cnode->object = NULL;
 	cnode->cdt_root = NULL;
+	cnode->metadata = NULL;
 	/*
 	 * Signal we are done
 	 */
@@ -960,6 +971,7 @@ static int try_revoke(struct cspace *cspace, struct cnode *cnode)
 		child->type = CAP_TYPE_FREE;
 		child->object = NULL;
 		child->cdt_root = NULL;
+		child->metadata = NULL;
 		/*
 		 * Unlock child
 		 */

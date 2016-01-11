@@ -304,27 +304,6 @@ static inline int cap_cspace_slots_in_level(int lvl)
  */
 cap_type_t cap_register_type(cap_type_t type, const struct cap_type_ops *ops);
 /**
- * Revoke all derived capabilities.
- *
- * Does not delete the caller's capability.
- *
- * This may change the state of the lcd's whose capabilities are revoked (see
- * comment lcd_cap_delete).
- */
-int cap_revoke(struct cspace *cspace, cptr_t c);
-/**
- * Delete the capability in slot from this cspace.
- *
- * This may change the state of the caller. (For example, if the caller is
- * a regular lcd, and if the capability is to a page, the page will be unmapped
- * from the caller's address space.)
- *
- * If this is the last capability to the object, the object will be destroyed,
- * unless it is a kernel page. See klcd_add_page and klcd_rm_page.
- */
-void cap_delete(struct cspace *cspace, cptr_t c);
-
-/**
  * Allocates a new cspace. If no memory could be allocated, returns NULL.
  */
 struct cspace * cap_alloc_cspace(void);
@@ -351,26 +330,52 @@ void* cap_cspace_getowner(struct cspace *cspace);
  */
 int cap_insert(struct cspace *cspace, cptr_t c, void *object, cap_type_t type);
 /**
- * Deletes object data from cspace at cnode pointed at by c.
+ * cap_delete -- Deletes object data from cspace at cnode pointed at by c
+ * @cspace: the cspace to delete capability from
+ * @c: the cptr to the capability in the cspace
  *
- * Updates the state of the microkernel to reflect rights change (e.g., if
- * a cnode for a page is deleted, and the page is mapped, the page will be
- * unmapped).
+ * The revoke callback for the capability's type will be invoked. This
+ * gives the libcap user a chance to update any external state to reflect
+ * the rights change.
  *
- * If this is the last cnode that refers to the object, the object is
- * destroyed.
+ * Note: After the revoke callback is invoked, libcap will NULL out the
+ * slot's metadata (so when you re-use the slot in the future, the metadata
+ * will start out as NULL).
+ *
+ * If this is the last cnode that refers to the object, the
+ * delete callback for the capability's type will be invoked.
  */
 void cap_delete(struct cspace *cspace, cptr_t c);
 /**
+ * cap_grant -- Grant capability from source to destination cspace
+ * @cspacesrc: the source cspace
+ * @c_src: the cptr to the slot/capability in the source cspace
+ * @cspacedst: the destination cspace
+ * @c_dst: the cptr to the slot in the destination cspace to grant to
+ *
  * Copies cnode data in src cnode at c_src to dest cnode at c_dst. The dest
  * cnode will be a child of the src cnode in the cdt containing src cnode.
+ *
+ * Note: Metadata pointers *are not* carried over to the destination slot (the
+ * destination slot will start out with NULL metadata).
  */
 int cap_grant(struct cspace *cspacesrc, cptr_t c_src,
 	      struct cspace *cspacedst, cptr_t c_dst);
 /**
- * Equivalent to calling lcd_cap_delete on all of the cnode's children. 
+ * cap_revoke -- Equivalent to calling cap_delete on all of the capability's 
+ *               children
+ * @cspace: the cspace that contains the parent capability
+ * @c: the cptr to the capability/slot in @cspace that contains parent
  *
- * ** Does not delete the cnode itself. **
+ * The revoke callback will be invoked for every child capability. This gives
+ * the libcap user a chance to update external state to reflect the
+ * rights change.
+ *
+ * ** Does not delete the parent capability itself. **
+ *
+ * Note: After the revoke callback completes, each child's metadata field
+ * will be NULL'd out (so that when the slot is re-used in the future,
+ * the metadata field will start out as NULL).
  */
 int cap_revoke(struct cspace *cspace, cptr_t c);
 /**
@@ -409,7 +414,36 @@ void cap_cnode_put(struct cnode *cnode);
  * Get the object stored at this cnode.
  */
 void* cap_cnode_object(struct cnode *cnode);
-
+/**
+ * cap_cnode_metadata -- Get the metadata stored in the cnode
+ * @cnode: the cnode to get metadata from
+ *
+ * Note: If you never called cap_cnode_set_metadata on the @cnode
+ * since it became occupied, this will be NULL.
+ */
+void* cap_cnode_metadata(struct cnode *cnode);
+/**
+ * cap_cnode_set_metadata -- Store metadata in cnode
+ * @cnode: the cnode to store metadata into
+ * @metadata: the metadata pointer to store
+ *
+ * IMPORTANT: As mentioned in cap_delete/cap_revoke, a cnode's metadata
+ * will be NULL'd out after the callbacks are called when a capability is 
+ * deleted (a cnode becomes free). The libcap user is responsible for
+ * doing the right thing in the delete/revoke callbacks.
+ *
+ * libcap *will not* copy metadata pointers during grant. The destination
+ * cnode/capability will not be given the same metadata pointer that the
+ * source capability had. (Of course, the libcap user is free to set
+ * the metadata pointers of the source and destination cnodes/capabilities
+ * to point to the same object.)
+ *
+ * Motivation: The libcap user may want to associate some contextual
+ * information for each capability (rather than with the object). For
+ * example, the LCD microkernel uses metadata to track whether a page 
+ * referred to by a page capability has been mapped and where.
+ */
+void cap_cnode_set_metadata(struct cnode *cnode, void *metadata);
 /**
  * Get the type of this cnode
  */
