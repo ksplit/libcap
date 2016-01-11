@@ -159,7 +159,7 @@ static int make_empty_cnode_table(struct cspace *cspace, uint8_t level,
 	 * We delay some of the other set up until the cnode is
 	 * actually used.
 	 */
-	for (i = 0; i < CAP_CNODE_TABLE_NUM_SLOTS; i++) {
+	for (i = 0; i < CAP_CSPACE_CNODE_TABLE_SIZE; i++) {
 		new->cnode[i].type = CAP_TYPE_FREE;
 		INIT_LIST_HEAD(&new->cnode[i].children);
 		INIT_LIST_HEAD(&new->cnode[i].siblings);
@@ -262,7 +262,7 @@ static int update_cnode_table(struct cspace *cspace,
 	 * pointers. Skip over cap slots by adding half the number of slots
 	 * to level_id.
 	 */
-	index = level_id + (CAP_CNODE_TABLE_NUM_SLOTS >> 1);
+	index = level_id + (CAP_CSPACE_CNODE_TABLE_SIZE >> 1);
 
 	if (old->cnode[index].type == CAP_TYPE_CNODE) {
 		/*
@@ -324,6 +324,11 @@ static int find_cnode(struct cspace *cspace, struct cnode_table *old,
 		/*
 		 * invalid indexing, etc.
 		 */
+		CAP_DEBUG(1,
+			"Error in lookup: cnode is %s, and we are%s trying to alloc\n",
+			old->cnode[level_id].type == CAP_TYPE_FREE ?
+				"free" : "occupied",
+			alloc ? "" : " not");
 		return -EINVAL;	/* signal an error in look up */
 	}
 }
@@ -381,7 +386,7 @@ static int __cap_cnode_lookup(struct cspace *cspace, cptr_t c, bool alloc,
 	/*
 	 * If cptr is null, fail
 	 */
-	if (cptr_val(c) == cptr_val(CAP_CPTR_NULL))
+	if (cptr_is_null(c))
 		return -EINVAL;
 
 	/*
@@ -1079,7 +1084,7 @@ static void cnode_table_tear_down(struct cnode_table *t, struct cspace *cspace)
 	/*
 	 * Loop over cap slots (first half), and tear down each cnode
 	 */
-	for (i = 0; i < (CAP_CNODE_TABLE_NUM_SLOTS >> 1); i++) {
+	for (i = 0; i < (CAP_CSPACE_CNODE_TABLE_SIZE >> 1); i++) {
 		cnode = &t->cnode[i];
 		cnode_tear_down(cnode, cspace);
 	}

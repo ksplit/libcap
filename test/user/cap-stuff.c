@@ -47,23 +47,36 @@ int testcase1()
 
 	/* Initialize a cspace */
 	csp = cap_alloc_cspace();
+	if (!csp) {
+		printf("bad alloc\n");
+		goto out;
+	}
 	printf("\nTestCase : Cspace Initialization.\n");
 	ret = cap_init_cspace(csp);
 	if (ret < 0) {
 		printf("Cspace Initialization Failed!!\n");
-		goto fail1;
+		goto free_cspace;
 	} else
 		printf("Cspace Initialization Passed Address:%p \n", csp);
 
 	/* cptr cache intialization. This is totally users stuff */
-	ret = cptr_cache_init(&cache);
+	ret = cptr_cache_alloc(&cache);
+	if (ret < 0) {
+		printf("cptr cache alloc failed\n");
+		goto destroy_cspace;
+	}
+	ret = cptr_cache_init(cache);
+	if (ret < 0) {
+		printf("cptr cache init failed\n");
+		goto free_cache;
+	}	
 
 	ret = cptr_alloc(cache, &slot_out);
 	p = strdup("testcase1");
 	if (!p) {
 		CAP_ERR("alloc failed");
 		ret = -ENOMEM;
-		goto fail;
+		goto destroy_cache;
 	}
 
 	/* Insert capability in cspace */
@@ -72,14 +85,14 @@ int testcase1()
 
 	if (ret < 0) {
 		CAP_ERR("cap insertion failed\n");
-		goto fail;
+		goto destroy_cache;
 	}
 
 	/* Verification if capability is properly inserted in the cspace. */
 	ret = cap_cnode_verify(csp, slot_out);
 	if (ret < 0) {
 		CAP_ERR("Lookup failed");
-		goto fail;
+		goto destroy_cache;
 	} else
 		printf("Capability Addition & Lookup Passed\n");
 
@@ -111,15 +124,18 @@ int testcase1()
 	 */
 	ret = cap_insert(csp, slot_out, p, stringobj_type);
 
-	if (ret) {
+	if (ret)
 		printf("Cspace Deletion Passed\n");
-		goto fail1;
-	}
-fail:
+
+destroy_cache:
+	cptr_cache_destroy(cache);
+free_cache:
+	cptr_cache_free(cache);
+destroy_cspace:
 	cap_destroy_cspace(csp);
-fail1:
-	if (csp)
-		cap_free_cspace(csp);
+free_cspace:
+	cap_free_cspace(csp);
+out:
 	return ret;
 }
 
@@ -141,80 +157,97 @@ int testcase_grant()
 	ret = cap_init_cspace(scsp);
 	if (ret < 0) {
 		printf("Cspace Setup Failed\n");
-		goto fail;
+		goto free_scspace;
 	}
 	printf("Source Cspace Initilaized: Address=%p\n", scsp);
 
 	/* cptr cache intialization. This is totally users stuff */
-	ret = cptr_cache_init(&scache);
+	ret = cptr_cache_alloc(&scache);
+	if (ret < 0) {
+		printf("cache alloc failed\n");
+		goto destroy_scspace;
+	}
+	ret = cptr_cache_init(scache);
 	if (ret < 0) {
 		printf("Cache Initilization failed\n");
-		goto fail1;
+		goto free_scache;
 	}
 
 	ret = cptr_alloc(scache, &sslot);
 	if (ret < 0) {
 		printf("cptr allocation Failed!!\n");
-		goto fail1;
+		goto destroy_scache;
 	}
 	p = strdup("testcase_grant");
 	/* Insert capability in cspace */
 	ret = cap_insert(scsp, sslot, p, stringobj_type);
 	if (ret) {
 		CAP_ERR("cap insertion failed\n");
-		goto fail1;
+		goto destroy_scache;
 	}
 	printf("Added capability [%p] to Source cspace\n", p);
 
 	/* Setup destination cspace */
 	dcsp = cap_alloc_cspace();
 	if (!dcsp)
-		goto fail1;
+		goto destroy_scache;
 	ret = cap_init_cspace(dcsp);
 	if (ret < 0) {
 		printf("Cspace Setup Failed\n");
-		goto fail1;
+		goto free_dcspace;
 	}
 	printf("Destination Cspace Initilaized: Address=%p\n", dcsp);
 
-	ret = cptr_cache_init(&dcache);
+	ret = cptr_cache_alloc(&dcache);
+	if (ret < 0) {
+		printf("cache alloc failed\n");
+		goto destroy_dcspace;
+	}
+	ret = cptr_cache_init(dcache);
 	if (ret < 0) {
 		printf("Cache Initilization failed\n");
-		goto fail2;
+		goto free_dcache;
 	}
 
 	ret = cptr_alloc(dcache, &dslot);
 	if (ret < 0) {
 		printf("cptr allocation Failed!!\n");
-		goto fail2;
+		goto destroy_dcache;
 	}
 
 	ret = cap_grant(scsp, sslot, dcsp, dslot);
 	if (ret < 0) {
 		printf("Granting capability failed\n");
-		goto fail2;
+		goto destroy_dcache;
 	}
 
 	ret = cap_cnode_verify(dcsp, dslot);
 	if (ret < 0) {
 		CAP_ERR("Lookup failed\n");
-		goto fail2;
+		goto destroy_dcache;
 	} else {
 		printf("Capability granted successfully from Cspace[%p] at slot 0x%lx \
 				to Cspace[%p] at slot 0x%lx\n", scsp, cptr_val(sslot),
 				dcsp, cptr_val(dslot));
 	}
 
-fail2:
-	cap_destroy_cspace(dcsp);
-fail1:
-	cap_destroy_cspace(scsp);
-fail:
-	if (dcsp)
-		cap_free_cspace(dcsp);
-	if (scsp)
-		cap_free_cspace(scsp);
 
+destroy_dcache:
+	cptr_cache_destroy(dcache);
+free_dcache:
+	cptr_cache_free(dcache);
+destroy_dcspace:
+	cap_destroy_cspace(dcsp);
+free_dcspace:
+	cap_free_cspace(dcsp);
+destroy_scache:
+	cptr_cache_destroy(scache);
+free_scache:
+	cptr_cache_free(scache);
+destroy_scspace:
+	cap_destroy_cspace(scsp);
+free_scspace:
+	cap_free_cspace(scsp);
 	return ret;
 }
 
@@ -301,72 +334,91 @@ int testcase_revoke() {
 	scsp = cap_alloc_cspace();
         if (!scsp) {
                 perror("Source Cspace allocation failed\n");
-                goto fail;
+                goto out;
         }
         ret = cap_init_cspace(scsp);
         if (ret < 0) {
                 printf("Cspace Initialization failed\n");
-                goto fail;
+                goto free_scspace;
         }
-        ret = cptr_cache_init(&scache);
+
+	ret = cptr_cache_alloc(&scache);
+	if (ret < 0) {
+		printf("cache alloc failed\n");
+		goto destroy_scspace;
+	}
+        ret = cptr_cache_init(scache);
         if (ret < 0) {
                 printf("cptr cache Initialization failed\n");
-                goto fail1;
+                goto free_scache;
         }
 
 	/* 2nd CSPACE */
         dcsp = cap_alloc_cspace();
         if (!dcsp) {
                 perror("malloc cspace\n");
-                goto fail1;
+                goto destroy_scache;
         }
         ret = cap_init_cspace(dcsp);
         if (ret < 0) {
                 printf("Cspace Initialization failed\n");
-                goto fail1;
+                goto free_dcspace;
         }
-        ret = cptr_cache_init(&dcache);
+	ret = cptr_cache_alloc(&dcache);
+	if (ret < 0) {
+		printf("cache alloc failed\n");
+		goto destroy_dcspace;
+	}
+        ret = cptr_cache_init(dcache);
         if (ret < 0) {
                 printf("cptr cache Initialization failed\n");
-                goto fail2;
+                goto free_dcache;
         }
 
 	ret = cptr_alloc(scache, &sslot);
         if (ret < 0) {
                 printf("cptr aloocation failed\n");
-                goto fail2;
+                goto destroy_dcache;
         }
 	ret = cptr_alloc(dcache, &dslot);
 	if (ret < 0) {
                 printf("cptr aloocation failed\n");
-		goto fail2;
+		goto destroy_dcache;
 	}
 
 	ret = insert(scsp, sslot);
 	if (ret < 0)
-		goto fail2;
+		goto destroy_dcache;
 	ret = grant(scsp, dcsp, sslot, dslot);
 	if (ret < 0)
-		goto fail2;
+		goto destroy_dcache;
 	ret = do_revoke(scsp, sslot, scache);
 	if (ret < 0)
-		goto fail2;
+		goto destroy_dcache;
 	ret = cap_cnode_verify(dcsp, dslot);
 	if (ret < 0) {
 		printf("\nTestcase Capability Revocation Passed\n");
-		goto fail2;
+		goto destroy_dcache;
 	}
 	printf("\nTestcase capability Revocation Failed\n");
 
-fail2:
+destroy_dcache:
+	cptr_cache_destroy(dcache);
+free_dcache:
+	cptr_cache_free(dcache);
+destroy_dcspace:
 	cap_destroy_cspace(dcsp);
-fail1:
+free_dcspace:
+	cap_free_cspace(dcsp);
+destroy_scache:
+	cptr_cache_destroy(scache);
+free_scache:
+	cptr_cache_free(scache);
+destroy_scspace:
 	cap_destroy_cspace(scsp);
-fail:
-	if (dcsp)
-		cap_free_cspace(dcsp);
-	if (scsp)
-		cap_free_cspace(scsp);
+free_scspace:
+	cap_free_cspace(scsp);
+out:
 	return ret;
 }
 

@@ -41,7 +41,7 @@
  * cptr allocation algorithm works, and (2) because a cnode table needs at 
  * least one capability slot and one pointer slot.
  */
-#define CAP_CSPACE_CNODE_TABLE_BITS 8
+#define CAP_CSPACE_CNODE_TABLE_BITS 6
 #define CAP_CSPACE_CNODE_TABLE_SIZE (1 << CAP_CSPACE_CNODE_TABLE_BITS)
 
 #if (CAP_CSPACE_CNODE_TABLE_SIZE < 2)
@@ -52,10 +52,12 @@
  * All of the data - the level, fanout sections, and slot - must fit
  * inside an unsigned long. The current configuration was chosen so
  * that this works on 32- and 64-bit. The cspace size is fairly
- * significant - over 200 million slot capacity.
+ * significant - over 1 million slot capacity. You don't want it to
+ * be too big or else the (inefficient) cptr cache with bitmaps will
+ * be enormous.
  */
 #if ((CAP_CSPACE_DEPTH * (CAP_CSPACE_CNODE_TABLE_BITS - 1) +	\
-		CAP_CSPACE_DEPTH_BITS) > SIZEOF_UNSIGNED_LONG)
+		CAP_CSPACE_DEPTH_BITS) > (SIZEOF_UNSIGNED_LONG * 8))
 #error "Adjust cspace sizing, otherwise cptrs won't work."
 #endif
 
@@ -81,91 +83,29 @@
 #else
 #error "cspace depth not 4, you need to update this"
 #endif
-static inline int cap_cspace_slots_in_level(int lvl)
-{
-	int out = CAP_CSPACE_CNODE_TABLE_SIZE/2;
-	if (lvl < 0 || lvl >= CAP_CSPACE_DEPTH)
-		BUG();
-	for ( ; lvl > 0; lvl-- )
-		out *= CAP_CSPACE_CNODE_TABLE_SIZE/2;
-	return out;
-}
 
 /* CPTRs -------------------------------------------------- */
 
+/**
+ * cptr_t -- Index into cspace radix tree (like a file descriptor)
+ *
+ * We wrap it inside a struct def so that the compiler will do strong
+ * type checking.
+ */
 typedef struct {
 	unsigned long cptr;
 } cptr_t;
-
-static inline cptr_t __cptr(unsigned long cptr)
-{
-	return (cptr_t) {cptr};
-}
-
-static inline unsigned long cptr_val(cptr_t c)
-{
-	return c.cptr;
-}
-
-static inline unsigned long cap_cptr_slot(cptr_t c)
-{
-	/*
-	 * Mask off low bits
-	 */
-	return cptr_val(c) & ((1 << (CAP_CSPACE_CNODE_TABLE_BITS - 1)) - 1);
-}
-
-/* 
- * Gives fanout index for going *from* lvl to lvl + 1, where 
- * 0 <= lvl < CAP_CSPACE_DEPTH.
- */
-static inline unsigned long cap_cptr_fanout(cptr_t c, int lvl)
-{
-	unsigned long i;
-
-	if (unlikely(lvl >= 3))
-		BUG();
-
-	i = cptr_val(c);
-	/*
-	 * Shift and mask off bits at correct section
-	 */
-	i >>= ((lvl + 1) * (CAP_CSPACE_CNODE_TABLE_BITS - 1));
-	i &= ((1 << (CAP_CSPACE_CNODE_TABLE_BITS - 1)) - 1);
-
-	return i;
-}
-
-/*
- * Gives depth/level of cptr, zero indexed (0 means the root cnode table)
- */
-static inline unsigned long cap_cptr_level(cptr_t c)
-{
-	unsigned long i;
-
-	i = cptr_val(c);
-	/*
-	 * Shift and mask
-	 */
-	i >>= (CAP_CSPACE_DEPTH * (CAP_CSPACE_CNODE_TABLE_BITS - 1));
-	i &= ((1 << CAP_CSPACE_DEPTH_BITS) - 1);
-
-	return i;
-}
 
 /*
  * Reserved cnodes:
  *
  * cptr = 0 is always null
  */
-#define CAP_CPTR_NULL __cptr(0)
+#define CAP_CPTR_NULL ((cptr_t){0})
 
-static inline int cptr_is_null(cptr_t c)
-{
-	return cptr_val(c) == cptr_val(CAP_CPTR_NULL);
-}
 
 /* CPTR CACHE -------------------------------------------------- */
+
 
 #if (CAP_CSPACE_DEPTH == 4)
 
@@ -179,23 +119,6 @@ struct cptr_cache {
 	/* level 3 bitmap */
 	unsigned long bmap3[CAP_BITS_TO_LONGS(CAP_CSPACE_SLOTS_IN_LEVEL(3))];
 };
-
-static inline unsigned long* 
-cap_cptr_cache_bmap_for_level(struct cptr_cache *c, int lvl)
-{
-	switch (lvl) {
-	case 0:
-		return c->bmap0;
-	case 1:
-		return c->bmap1;
-	case 2:
-		return c->bmap2;
-	case 3:
-		return c->bmap3;
-	default:
-		BUG();
-	}
-}
 
 #else
 #error "You need to adjust the cptr cache def."

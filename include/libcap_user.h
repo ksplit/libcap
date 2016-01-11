@@ -2,6 +2,7 @@
 #define __LIBCAP_USER_H__
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <pthread.h>
 
 CAP_BUILD_CORE_TYPES_NOBUILTIN();
@@ -14,5 +15,9 @@ CAP_BUILD_CORE_TYPES_NOBUILTIN();
     fprintf(stderr,"CINFO: %s:%d: "format,__FUNCTION__,__LINE__,## __VA_ARGS__)
 #define __cap_debug(format,...) \
     fprintf(stderr,"CDEBUG: %s:%d: "format,__FUNCTION__,__LINE__,## __VA_ARGS__)
+
+#define __cap_bug() \
+	abort()
+
 
 #endif /* __LIBCAP_USER_H__ */

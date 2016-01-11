@@ -57,27 +57,192 @@ struct cap_type_ops {
 #define CAP_TYPE_MAX 256
 #endif
 
+#define CAP_BUG() __cap_bug()
+
 /**
- * Initalize the cptr cache subsystem
+ * For now, put debug macros in the user-accessible part; convenient.
  */
-void cptr_init(void);
+extern int cap_debug_level;
+
+#define CAP_ERR __cap_err
+#define CAP_WARN __cap_warn
+#define CAP_MSG __cap_msg
+
+#define CAP_DEBUG_ERR  1
+#define CAP_DEBUG_WARN 2
+#define CAP_DEBUG_MSG  3
+
+#define CAP_DEBUG(lvl, msg, ...) {					\
+	if (lvl <= cap_debug_level)					\
+	    __cap_debug(msg,## __VA_ARGS__);				\
+	}
+
+/* CPTRs -------------------------------------------------- */
+
 /**
- * Allocate and initialize a new cptr_cache.
+ * __cptr -- Construct a cptr from an unsigned long
+ * @cptr: the unsigned long to use
+ *
+ * This is a low-level function. You need to know how to pack
+ * the bits into the unsigned long.
  */
-int cptr_cache_init(struct cptr_cache **c_out);
+static inline cptr_t __cptr(unsigned long cptr)
+{
+	return (cptr_t) {cptr};
+}
 /**
- * Free and delete a cptr_cache
+ * cptr_val -- Extract the unsigned long (bits) in the cptr
+ * @c: the ctpr to extract
+ *
+ * This can be useful if you want to pass a cptr in a register,
+ * as a scalar.
  */
-void cptr_cache_destroy(struct cptr_cache *c);
+static inline unsigned long cptr_val(cptr_t c)
+{
+	return c.cptr;
+}
 /**
- * Allocate a new cptr in the given cptr_cache. The cptr is stored in the memory
- * pointed to by 'free_cptr'.
+ * cap_cptr_slot -- Returns the slot index into the final cnode table
+ * @c: the cptr
+ *
+ * Once you have arrived at the correct cnode table in the cspace
+ * radix tree, this is the index into that table to get the
+ * capability that @c refers to.
+ */
+static inline unsigned long cap_cptr_slot(cptr_t c)
+{
+	/*
+	 * Mask off low bits
+	 */
+	return cptr_val(c) & ((1 << (CAP_CSPACE_CNODE_TABLE_BITS - 1)) - 1);
+}
+/**
+ * cap_cptr_fanout -- Gives fanout index for going *from* @lvl to @lvl + 1
+ * @c: the cptr
+ * @lvl: the level in the cspace radix tree, where 0 <= lvl < CAP_CSPACE_DEPTH
+ *
+ * Each node in the cspace radix tree is a cnode table. Each cnode
+ * table is split in half: the first half are capability slots, and
+ * the other half are pointers to further nodes in the tree. If a
+ * cptr refers to a slot in a deeper level in the tree, you need to
+ * follow these pointers. The fanout index tells you which pointers
+ * to follow at each level.
+ */
+static inline unsigned long cap_cptr_fanout(cptr_t c, int lvl)
+{
+	unsigned long i;
+
+	if (lvl >= CAP_CSPACE_DEPTH - 1)
+		CAP_BUG();
+
+	i = cptr_val(c);
+	/*
+	 * Shift and mask off bits at correct section
+	 */
+	i >>= ((lvl + 1) * (CAP_CSPACE_CNODE_TABLE_BITS - 1));
+	i &= ((1 << (CAP_CSPACE_CNODE_TABLE_BITS - 1)) - 1);
+
+	return i;
+}
+/**
+ * cap_cptr_level -- The zero-indexed level in the cspace radix tree
+ * @c: the cptr
+ *
+ * Returns the level of the slot which @c refers to. 0 means the root 
+ * cnode table.
+ */
+static inline unsigned long cap_cptr_level(cptr_t c)
+{
+	unsigned long i;
+
+	i = cptr_val(c);
+	/*
+	 * Shift and mask
+	 */
+	i >>= (CAP_CSPACE_DEPTH * (CAP_CSPACE_CNODE_TABLE_BITS - 1));
+	i &= ((1 << CAP_CSPACE_DEPTH_BITS) - 1);
+
+	return i;
+}
+/**
+ * cap_cptr_set_level -- Sets the level for @c
+ * @c: the cptr
+ * @lvl: the level in the cspace radix tree, 0 <= lvl < CAP_CSPACE_DEPTH
+ */
+static inline void cap_cptr_set_level(cptr_t *c, int lvl)
+{
+	/* Shift and OR to store lvl */
+	c->cptr |= (lvl << 
+		(CAP_CSPACE_DEPTH * (CAP_CSPACE_CNODE_TABLE_BITS - 1)));
+}
+/**
+ * cptr_is_null -- Returns non-zero if cptr is the special null cptr
+ * @c: cptr to test
+ */
+static inline int cptr_is_null(cptr_t c)
+{
+	return cptr_val(c) == cptr_val(CAP_CPTR_NULL);
+}
+
+/* CPTR CACHEs -------------------------------------------------- */
+
+/**
+ * cptr_init -- Initalize the cptr cache subsystem
+ */
+int cptr_init(void);
+/**
+ * cptr_fini -- Tear down the cptr cache subsystem.
+ */
+void cptr_fini(void);
+/**
+ * cptr_cache_alloc -- Allocate a cptr cache data structure (not initialized)
+ * @out: out param, pointer to newly alloc'd cache
+ *
+ * You should call cptr_cache_free when done with the cache. Returns
+ * non-zero on error.
+ */
+int cptr_cache_alloc(struct cptr_cache **out);
+/**
+ * cptr_cache_free -- Free a cptr cache alloc'd via cptr_cache_alloc
+ * @cache: the cptr cache to free
+ */
+void cptr_cache_free(struct cptr_cache *cache);
+/**
+ * cptr_cache_init -- Initialize the data in a cptr cache
+ * @cache: the cptr cache to initialize
+ *
+ * Zeros out things, and sets some initial values. You *must* call this
+ * function before using the cptr cache.
+ */
+int cptr_cache_init(struct cptr_cache *cache);
+/**
+ * cptr_cache_destroy -- Destroys internals of cptr cache
+ * @cache: cache to destroy
+ *
+ * For now, this is a no-op. You *must* call this before freeing the
+ * cache. (Yes, for now it is a no-op, but perhaps it won't be in the
+ * future.)
+ */
+void cptr_cache_destroy(struct cptr_cache *cache);
+/**
+ * cptr_alloc -- Allocate a new cptr from the cache
+ * @cache: the cptr cache to allocate from
+ * @free_cptr: out param, points to the allocated cptr
+ *
+ * Returns non-zero if there are no more slots left.
  */
 int cptr_alloc(struct cptr_cache *cptr_cache, cptr_t *free_cptr);
 /**
- * Remove the value pointed to by the
+ * cptr_free -- Return a cptr to the cache
+ * @cache: the cptr cache to return the cptr to
+ * @c: the cptr to return
+ *
+ * Fails silently if the cptr is free already.
  */
 void cptr_free(struct cptr_cache *cptr_cache, cptr_t c);
+
+
+/* CSPACES -------------------------------------------------- */
 
 /**
  * Initializes caches, etc. in capability subsystem. Called when microkernel
@@ -89,6 +254,24 @@ int cap_init(void);
  * is exiting.
  */
 void cap_fini(void);
+
+/**
+ * cap_cspace_slots_in_level -- Return total number of slots in cspace at lvl
+ * @lvl: the level to query
+ *
+ * Returns the total number of *capability* slots in all of the
+ * cnode tables at a given @lvl of the cspace radix tree.
+ */
+static inline int cap_cspace_slots_in_level(int lvl)
+{
+	int out = CAP_CSPACE_CNODE_TABLE_SIZE/2;
+	if (lvl < 0 || lvl >= CAP_CSPACE_DEPTH)
+		CAP_BUG();
+	for ( ; lvl > 0; lvl-- )
+		out *= CAP_CSPACE_CNODE_TABLE_SIZE/2;
+	return out;
+}
+
 /**
  * Register a new capability object type.  If you pass type == 0, the
  * system will select the next available identifier and return it.  You
@@ -215,22 +398,5 @@ cap_type_t cap_cnode_type(struct cnode *cnode);
  */
 struct cspace * cap_cnode_cspace(struct cnode *cnode);
 
-/**
- * For now, put debug macros in the user-accessible part; convenient.
- */
-extern int cap_debug_level;
-
-#define CAP_ERR __cap_err
-#define CAP_WARN __cap_warn
-#define CAP_MSG __cap_msg
-
-#define CAP_DEBUG_ERR  1
-#define CAP_DEBUG_WARN 2
-#define CAP_DEBUG_MSG  3
-
-#define CAP_DEBUG(lvl, msg, ...) {					\
-	if (lvl <= cap_debug_level)					\
-	    __cap_debug(msg,## __VA_ARGS__);				\
-	}
 
 #endif /* __LIBCAP_H__ */

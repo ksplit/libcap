@@ -39,7 +39,7 @@ struct cnode {
 };
 
 struct cnode_table {
-	struct cnode cnode[CAP_CNODE_TABLE_NUM_SLOTS];
+	struct cnode cnode[CAP_CSPACE_CNODE_TABLE_SIZE];
 	uint8_t table_level;
 	struct list_head table_list;
 };
@@ -61,7 +61,7 @@ struct cdt_root_node {
 
 /* The init and finish routines are defined in their own compoents. The
  * implementations differ between the kernel and userspace. */
-void __cptr_init(void);
+int __cptr_init(void);
 void __cptr_fini(void);
 
 /**

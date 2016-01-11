@@ -249,9 +249,13 @@ int main()
 	ret = cap_init();
 	if (ret < 0) {
 		CAP_ERR("libcap init failed");
-		return ret;
+		goto out;
 	}
-	cptr_init();
+	ret = cptr_init();
+	if (ret < 0) {
+		CAP_ERR("cptr init failed");
+		goto cap_exit;
+	}
 
 	stringobj_type = cap_register_type(stringobj_type, &stringobj_ops);
 
@@ -260,38 +264,48 @@ int main()
 	scsp = cap_alloc_cspace();
 	if (!scsp) {
 		printf("Source Cspace allocation failed!\n");
-		goto fail2;
+		goto cptr_exit;
 	}
 
 	ret = cap_init_cspace(scsp);
 	if (ret < 0) {
 		printf("Cspace Initialization failed\n");
-		goto fail2;
+		goto free_scspace;
 	}
 
 	/* 2nd CSPACE */	
 	dcsp = cap_alloc_cspace();
 	if (!dcsp) {
 		printf("Destination Cspace allocation failed!\n");
-		goto fail1;
+		goto destroy_scspace;
 	}
 
 	ret = cap_init_cspace(dcsp);
 	if (ret < 0) {
 		printf("Cspace Initialization failed\n");
-		goto fail1;
+		goto free_dcspace;
 	}
 
-	ret = cptr_cache_init(&scache);
+	ret = cptr_cache_alloc(&scache);
+	if (ret < 0) {
+		printf("cptr cache alloc failed\n");
+		goto destroy_dcspace;
+	}
+	ret = cptr_cache_init(scache);
 	if (ret < 0) {
 		printf("cptr cache Initialization failed\n");
-		goto fail;
+		goto free_scache;
 	}
 
-	ret = cptr_cache_init(&dcache);
+	ret = cptr_cache_alloc(&dcache);
+	if (ret < 0) {
+		printf("cptr cache alloc failed\n");
+		goto destroy_scache;
+	}
+	ret = cptr_cache_init(dcache);
 	if (ret < 0) {
 		printf("cptr cache Initialization failed\n");
-		goto fail;
+		goto free_dcache;
 	}
 
 	for (i = 0; i < SLOTS; i++) {
@@ -328,17 +342,27 @@ int main()
 			printf("Problem join %d\n", i);
 		}
 	}
- fail:
-	cap_destroy_cspace(dcsp);
- fail1:
-	cap_destroy_cspace(scsp);
- fail2:
-	if (dcsp)
-		cap_free_cspace(dcsp);
-	if (scsp)
-		cap_free_cspace(scsp);
-	cptr_fini();
-	cap_fini();
 
+destroy_dcache:
+	cptr_cache_destroy(dcache);
+free_dcache:
+	cptr_cache_free(dcache);
+destroy_scache:
+	cptr_cache_destroy(scache);
+free_scache:
+	cptr_cache_free(scache);
+destroy_dcspace:
+	cap_destroy_cspace(dcsp);
+free_dcspace:
+	cap_free_cspace(dcsp);
+destroy_scspace:
+	cap_destroy_cspace(scsp);
+free_scspace:
+	cap_free_cspace(scsp);
+cptr_exit:
+	cptr_fini();
+cap_exit:
+	cap_fini();
+out:
 	return ret;
 }

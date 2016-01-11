@@ -41,7 +41,7 @@ static int __get_l1_cache_size(int *size, int *line)
 	return 0;
 }
 
-void __cptr_init()
+int __cptr_init(void)
 {
 	int i;
 
@@ -53,10 +53,10 @@ void __cptr_init()
 		pthread_spin_init(&__spinlocks[i], PTHREAD_PROCESS_PRIVATE);
 	}
 
-	return;
+	return 0;
 }
 
-void __cptr_fini()
+void __cptr_fini(void)
 {
 	if (__spinlocks)
 		free((void *)__spinlocks);
