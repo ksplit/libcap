@@ -115,7 +115,7 @@ struct cdt_root_node *__cap_cdt_root_create(void)
 	}
 	cdt_node = cap_cache_alloc(cdt_cache.cdt_root_cache);
 	cdt_node->state = ALLOCATION_VALID;
-    cdt_root->refcount = 0;
+    cdt_node->refcount = 0;
     cdt_node->parent = NULL;
 	cap_mutex_init(&cdt_node->lock);
 	cap_mutex_unlock(&cdt_cache.lock);
@@ -616,7 +616,7 @@ static void cap_notify_revocation(struct cspace *cspace, struct cnode *cnode)
  */
 // was called "do_delete_from_cdt"
 static int __cap_cdt_root_remove(struct cnode *cnode,
-			                     struct cdt_root_node *cdt_root)
+			                     struct cdt_root_node *cdt_root) {
 	int last_node = 0;
 	/*
 	 * Make the cnode's children the children of cnode's parent by
@@ -677,7 +677,7 @@ static int try_delete_cnode(struct cspace *cspace, struct cnode *cnode)
 	/*
 	 * Delete the cnode from the cdt
 	 */
-	last_node = do_delete_from_cdt(cnode, cdt_node);
+    last_node = __cap_cdt_root_remove(cnode, cdt_node);
 	if (last_node)
 		cdt_node->state = ALLOCATION_MARKED_FOR_DELETE;
 	/*
@@ -701,7 +701,7 @@ static int try_delete_cnode(struct cspace *cspace, struct cnode *cnode)
 		 *
 		 * Delete the cdt
 		 */
-		free_cdt_root(cdt_node);
+        __cap_cdt_root_free(cdt_node);
 		/*
 		 * Tear down the object.
 		 *
@@ -887,14 +887,14 @@ static inline void __cap_cnode_release_cdt_root(struct cnode *c) {
  * 'chidlren' list. */
 static bool __cap_cnode_is_root(struct cnode *c) {
     struct list_head *sib_cursor;
-    list_for_each(sib_cursor, c->siblings) {
+    list_for_each(sib_cursor, &c->siblings) {
         /* This is ok because to do without locking the cnode, because we
          * have a CDT lock and will only be touching CDT stuff. */
         struct cnode *sibling = list_entry(sib_cursor, struct cnode, children);
         struct list_head *child_cursor;
-        list_for_each(child_cursor, sibling->children) {
+        list_for_each(child_cursor, &sibling->children) {
             /* We're in this siblings children list, return false */
-            if (child_cursor == c->siblings) { return false; }
+            if (child_cursor == &c->siblings) { return false; }
         }
     }
     return true;
@@ -1193,7 +1193,7 @@ static int try_revoke(struct cspace *cspace, struct cnode *cnode)
 		/*
 		 * Delete from cdt. 
 		 */
-		do_delete_from_cdt(child, cdt_root);
+        __cap_cdt_root_remove(child, cdt_root);
 		/*
 		 * Update microkernel state to reflect rights change 
 		 */
