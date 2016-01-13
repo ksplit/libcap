@@ -390,6 +390,15 @@ int cap_insert(struct cspace *cspace, cptr_t c, void *object, cap_type_t type);
  * delete callback for the capability's type will be invoked.
  */
 void cap_delete(struct cspace *cspace, cptr_t c);
+
+/**
+ * Add the cnode 'c_dest' in 'cspacedest' to the cnode 'c_src's CDT. This is 
+ * a generic way of noting that the capability c_dest's authority derives from
+ * c_src's authority.
+ */
+int cap_derive(struct cspace *cspacesrc, cptr_t c_src,
+               struct cspace *cspacedest, cptr_t c_dest);
+
 /**
  * cap_grant -- Grant capability from source to destination cspace
  * @cspacesrc: the source cspace
@@ -407,7 +416,8 @@ void cap_delete(struct cspace *cspace, cptr_t c);
  * destination slot will start out with NULL metadata).
  */
 int cap_grant(struct cspace *cspacesrc, cptr_t c_src,
-	      struct cspace *cspacedst, cptr_t c_dst);
+              struct cspace *cspacedst, cptr_t c_dst);
+
 /**
  * cap_revoke -- Equivalent to calling cap_delete on all of the capability's 
  *               children

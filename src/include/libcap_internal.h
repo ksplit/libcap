@@ -85,6 +85,12 @@ struct cspace {
 
 struct cdt_root_node {
 	cap_mutex_t lock;
+    /* The number of cnodes that beleive this is their cdt_root, when
+     * the number reaches zero, it should be freed. */
+    unsigned int refcount;
+    /* Points to the parent CDT root node of this CDT root node if it
+     * exists. If CDT root node has no parent, it is NULL. */
+    struct cdt_root_node *parent;
 	struct cnode *cnode;
 	enum allocation_state state;
 };
