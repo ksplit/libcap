@@ -908,6 +908,16 @@ static int __cap_try_derive(struct cnode *src, struct cnode *dst) {
     if (!__cap_cnode_try_acquire_cdt_root(src)) { goto fail3; }
     if (!__cap_cnode_try_acquire_cdt_root(dst)) { goto fail2; }
 
+    /* Check if we're trying to derive from our own cdt_root. Note:
+     * src->cdt_root and dst->cdt_root are guaranteed to point to their uppermost
+     * CDT root because we called __cap_cnode_try_acquire_cdt_root on both
+     * of their CDTs */
+    if (src->cdt_root == dst->cdt_root) {
+        ret = -1;
+        CAP_ERR("tried to derive from our own root");
+        goto fail;
+    }
+
     if (!__cap_cnode_is_root(dst)) { 
         ret = -1; 
         CAP_ERR("tried to add non-root node to a new CDT tree (derive)");
