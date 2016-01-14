@@ -1,0 +1,8 @@
+
+top_srcdir = @top_srcdir@
+LIBCAP_PATH = $(top_srcdir)/src/libcap.a
+
+obj-m = cap_module.o
+
+cap_module-objs += main.o
+cap_module-objs += $(LIBCAP_PATH)

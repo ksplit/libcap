@@ -1,0 +1,40 @@
+
+# Kernel files
+KERNEL_INCLUDES = -Iplatform/kernel/include
+
+# Add includes to include search path
+AM_CPPFLAGS = $(COMMON_INCLUDES) $(KERNEL_INCLUDES) $(GLIB_INCLUDES)
+
+export COMMON_INCLUDES COMMON_SRCS
+
+LIBCAP_KBUILD=$(PWD)
+LIBCAP_KERNEL_MODULE_KBUILD=$(PWD)/platform/kernel/module
+
+# We need to build the static library first before the kernel
+# module (the kernel module links it in)
+all:
+	$(MAKE) -C $(KDIR) M=$(LIBCAP_KBUILD) \
+		CPPFLAGS="$(AM_CPPFLAGS) $(CPPFLAGS)"; \
+ifeq ($(ENABLE_KERNEL_MODULE),yes)
+	$(MAKE) -C $(KDIR) M=$(LIBCAP_KERNEL_MODULE_KBUILD) \
+		CPPFLAGS="$(AM_CPPFLAGS) $(CPPFLAGS)"
+else
+	;
+endif
+
+install:
+	$(MAKE) -C $(KDIR) M=$(LIBCAP_KBUILD) install; \
+ifeq ($(ENABLE_KERNEL_MODULE),yes)
+	$(MAKE) -C $(KDIR) M=$(LIBCAP_KERNEL_MODULE_KBUILD) install
+else
+	;
+endif
+
+clean:
+	$(MAKE) -C $(KDIR) M=$(LIBCAP_KBUILD) clean; \
+ifeq ($(ENABLE_KERNEL_MODULE),yes)
+	$(MAKE) -C $(KDIR) M=$(LIBCAP_KERNEL_MODULE_KBUILD) clean
+else
+	;
+endif
+

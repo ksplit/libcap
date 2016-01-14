@@ -2,7 +2,7 @@
 #include <linux/kernel.h>
 #include <linux/moduleparam.h>
 
-#include "libcap.h"
+#include <libcap.h>
 
 int cap_debug_level = 0;
 module_param(cap_debug_level, int, 0644);

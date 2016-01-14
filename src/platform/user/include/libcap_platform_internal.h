@@ -18,8 +18,8 @@
 #include <errno.h>
 #include <unistd.h>
 
-#ifdef __APPLE__
-#include "compat_internal/osx_user.h"
+#ifdef CAP_OS_DARWIN
+#include "osx_user.h"
 #endif
 
 /**

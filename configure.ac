@@ -24,37 +24,40 @@ AS_CASE($host
     [-*-*-darwin*]
     [
         AC_MESSAGE_RESULT([yes])
-        AC_DEFINE(OS_DARWIN, 1, [Build for OS X host])
-        AC_SUBST(OS_DARWIN)
+        AC_DEFINE(CAP_OS_DARWIN, 1, [Build for OS X host])
+        AC_SUBST(CAP_OS_DARWIN)
     ])
 
 # --------------------------------------------------
 # libcap features and packages
 # --------------------------------------------------
 
-AC_ARG_ENABLE([user_lib],
-    [AS_HELP_STRING([--disable-user-lib],
-        [Disable user library build (default=no)])],
-    [MAYBE_USER_LIB="user"],
-    [MAYBE_USER_LIB=""])
+AC_ARG_VAR([PLATFORM],
+    [AS_HELP_STRING([PLATFORM=@{:@user|kernel@:}@],
+        [The platform to build for (default=user)])])
+AS_IF([test "x$PLATFORM" = "x"],
+    [PLATFORM=user])
+AC_SUBST(PLATFORM)
 
-AC_ARG_ENABLE([kernel_lib],
-    [AS_HELP_STRING([--disable-kernel-lib],
-        [Disable kernel library build (default=no)])],
-    [MAYBE_KERNEL_LIB="kernel"],
-    [MAYBE_KERNEL_LIB=""])
-
-AS_IF([test "x$enable_kernel_lib" = "xyes"]
+AS_IF([test "x$PLATFORM" = "xkernel"]
 
     [
-
+        # Build libcap as kernel module, in addition to static lib.a
         AC_ARG_ENABLE([kernel_module],
             [AS_HELP_STRING([--disable-kernel-module],
                 [Disable kernel module build (default=no)])],
-            [MAYBE_KERNEL_MODULE="module"],
-            [MAYBE_KERNEL_MODULE=""])
+            [ENABLE_KERNEL_MODULE="$enable_kernel_module"],
+            [ENABLE_KERNEL_MODULE="yes"])
+        AC_SUBST(ENABLE_KERNEL_MODULE)
 
     ])
+
+AC_ARG_ENABLE([test_build],
+    [AS_HELP_STRING([--disable-test-build],
+        [Disable building test applications (default=no)])],
+    [ENABLE_TEST_BUILD="$enable_test_build"],
+    [ENABLE_TEST_BUILD="yes"])
+AC_SUBST(ENABLE_TEST_BUILD)
 
 # --------------------------------------------------
 # Checks for programs.
@@ -73,11 +76,11 @@ AC_PROG_INSTALL
 # --------------------------------------------------
 
 # Check for pthreads
-AS_IF([test "x$enable_user_lib" = "xyes"],
+AS_IF([test "x$PLATFORM" = "xuser"],
     [AC_CHECK_LIB([pthread], [pthread_create])])
 
 # Check glib (the gangsta lib)
-AS_IF([test "x$enable_user_lib" = "xyes"],
+AS_IF([test "x$PLATFORM" = "xuser"],
 
     [
         GLIB=/usr # default prefix
@@ -114,7 +117,7 @@ AS_IF([test "x$enable_user_lib" = "xyes"],
     ])
 
 # Check for kernel build system
-AS_IF([test "x$enable_kernel_lib" = "xyes"],
+AS_IF([test "x$PLATFORM" = "xkernel"],
 
     [
         KDIR=/lib/modules/`uname -r`/build # default location of build system
@@ -129,6 +132,8 @@ AS_IF([test "x$enable_kernel_lib" = "xyes"],
         AC_CHECK_FILE($KDIR/Makefile,
             [AC_MSG_ERROR([Could not find kernel Makefile in $KDIR!])],
             [AC_MSG_NOTICE([Found kernel Makefile in $KDIR])])
+
+        AC_SUBST(KDIR)
 
     ])
 
@@ -170,10 +175,28 @@ AC_CHECK_FUNCS([memset strdup])
 
 AC_CONFIG_FILES(
   Makefile
-  include/Makefile
+
   src/Makefile
-  src/user/Makefile
-  src/kernel/Makefile
+
+  src/platform/Makefile
+  src/platform/kernel/Makefile
+  src/platform/kernel/top_level
+  src/platform/kernel/src/Makefile
+  src/platform/kernel/module/Kbuild:src/platform/kernel/module/Kbuild.in
+  src/platform/Kbuild:src/platform/kernel/Kbuild.in
+  src/platform/kernel/include/Makefile
+  src/platform/kernel/include/platform/Makefile
+  src/platform/kernel/include/platform/api/Makefile
+  src/platform/kernel/include/platform/internal/Makefile
+
+  src/platform/user/Makefile
+  src/platform/user/top_level
+  src/platform/user/src/Makefile
+  src/platform/user/include/Makefile
+  src/platform/user/include/platform/Makefile
+  src/platform/user/include/platform/api/Makefile
+  src/platform/user/include/platform/internal/Makefile
+
   test/Makefile
   test/user/Makefile
   test/kernel/Makefile
