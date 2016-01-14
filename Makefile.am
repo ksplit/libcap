@@ -1,3 +1,4 @@
 ACLOCAL_AMFLAGS = -I m4
 
-SUBDIRS = include src test
+SUBDIRS = src $(MAYBE_TESTS)
+DIST_DIRS = src test
