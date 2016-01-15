@@ -79,9 +79,6 @@ extern int cap_debug_level;
 
 /* CPTRs -------------------------------------------------- */
 
-#include "libcap_internal.h" /* temporary hack */
-
-
 /**
  * __cptr -- Construct a cptr from an unsigned long
  * @cptr: the unsigned long to use

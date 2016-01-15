@@ -18,4 +18,36 @@ CAP_BUILD_CORE_TYPES_NOBUILTIN();
 
 #define __cap_bug() BUG()
 
+/**
+ * Mutex support.
+ */
+typedef struct mutex cap_mutex_t;
+static inline int __cap_mutex_init(cap_mutex_t *mutex)
+{
+	mutex_init(mutex);
+	return 0;
+}
+
+static inline int __cap_mutex_lock(cap_mutex_t *mutex)
+{
+	mutex_lock(mutex);
+	return 0;
+}
+
+static inline int __cap_mutex_trylock(cap_mutex_t *mutex)
+{
+	return !mutex_trylock(mutex);
+}
+
+static inline int __cap_mutex_lock_interruptible(cap_mutex_t *mutex)
+{
+	return mutex_lock_interruptible(mutex);
+}
+
+static inline int __cap_mutex_unlock(cap_mutex_t *mutex)
+{
+	mutex_unlock(mutex);
+	return 0;
+}
+
 #endif /* __LIBCAP_KERNEL_H__ */
