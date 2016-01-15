@@ -1,6 +1,10 @@
 
-DIST_SUBDIRS = common include platform
-COMMON_SRCS = common/cap.o common/cptr_cache.o
-COMMON_INCLUDES = -Iinclude
+COMMON_SRCS = \
+	common/cap.o \
+	common/cptr_cache.o
 
-include platform/$(PLATFORM)/top_level.am
+COMMON_INCLUDES = include
+
+SUBDIRS = common include $(PLATFORM_DIR)
+DIST_SUBDIRS = common include platform
+

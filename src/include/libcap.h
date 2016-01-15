@@ -31,14 +31,14 @@ extern int cap_debug_level;
 #define CAP_DEBUG_WARN 2
 #define CAP_DEBUG_MSG  3
 
-#define CAP_DEBUG(lvl, msg, ...) {					\
-	if (lvl <= cap_debug_level)					\
-	    __cap_debug(msg,## __VA_ARGS__);				\
-	}
+#define CAP_DEBUG(lvl, msg, ...) do {					\
+		if (lvl <= cap_debug_level)				\
+			__cap_debug(msg,## __VA_ARGS__);		\
+	} while(0)
 
-#define CAP_BUG() __cap_bug()
+#define CAP_BUG() do { __cap_bug(); } while(0)
 
-#define CAP_BUG_ON(cond) __cap_bug_on()
+#define CAP_BUG_ON(cond) do { __cap_bug_on(cond); } while(0)
 
 /* CPTRs -------------------------------------------------- */
 

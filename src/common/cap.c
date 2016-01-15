@@ -444,7 +444,7 @@ static int __cap_cnode_get(struct cspace *cspace, cptr_t c,
 	ret = __cap_cnode_lookup(cspace, c, alloc, cnode);
 	if (ret) {
 		CAP_DEBUG(CAP_DEBUG_MSG,
-			"cnode lookup failed with ret = %d\n", ret)
+			"cnode lookup failed with ret = %d\n", ret);
 		goto fail2;
 	}
 

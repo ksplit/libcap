@@ -42,17 +42,19 @@ AC_ARG_VAR([PLATFORM],
     [The platform to build for @{:@user|kernel@:}@ (default=user)])
 AS_CASE([$PLATFORM],
     [user],
-    [],
+    [PLATFORM_DIR=platform/user],
     [kernel],
-    [],
+    [PLATFORM_DIR=platform/kernel],
     [*],
     [
         AC_MSG_NOTICE([PLATFORM (val=$PLATFORM) unset or invalid.])
         AC_MSG_NOTICE([Defaulting to PLATFORM=user.])
         PLATFORM=user
+        PLATFORM_DIR=platform/user
     ])
 AC_MSG_NOTICE([Building for PLATFORM=$PLATFORM.])
 AC_SUBST(PLATFORM)
+AC_SUBST(PLATFORM_DIR)
 
 # CSpace depth. We use bits to enforce that the depth is a power of 2.
 AC_ARG_VAR([CSPACE_DEPTH_BITS],
@@ -69,6 +71,7 @@ AS_CASE([$CSPACE_DEPTH_BITS],
         AC_MSG_ERROR([CSpace depth bits (val=$CSPACE_DEPTH_BITS) invalid. Please choose a value between 0 and 8.])
     ])
 AC_MSG_NOTICE([CSpace depth bits = $CAP_CSPACE_DEPTH_BITS.])
+AC_SUBST(CAP_CSPACE_DEPTH_BITS)
 
 # CNode table size. Again, we use bits to enforce that it's a power of 2.
 AC_ARG_VAR([CSPACE_CNODE_TABLE_BITS],
@@ -85,6 +88,7 @@ AS_CASE([$CSPACE_CNODE_TABLE_BITS],
         AC_MSG_ERROR([CSpace cnode table bits (val=$CSPACE_CNODE_TABLE_BITS) invalid. Please choose a value between 1 and 9.])
     ])
 AC_MSG_NOTICE([CNode table bits = $CAP_CSPACE_CNODE_TABLE_BITS.])
+AC_SUBST(CAP_CSPACE_CNODE_TABLE_BITS)
 
 # Kernel module build?
 AS_IF([test "x$PLATFORM" = "xkernel"],
@@ -257,20 +261,19 @@ AC_CONFIG_FILES(
   Makefile
 
   src/Makefile
-  src/include/Makefile
+  src/common/Makefile
 
+  src/include/Makefile
   src/include/libcap_config.h
 
   src/platform/Makefile
   src/platform/kernel/Makefile
-  src/platform/kernel/top_level
   src/platform/kernel/src/Makefile
   src/platform/kernel/module/Kbuild:src/platform/kernel/module/Kbuild.in
   src/platform/Kbuild:src/platform/kernel/Kbuild.in
   src/platform/kernel/include/Makefile
 
   src/platform/user/Makefile
-  src/platform/user/top_level
   src/platform/user/src/Makefile
   src/platform/user/include/Makefile
 
