@@ -13,6 +13,11 @@
 #define __LIBCAP_INTERNAL_H__
 
 #include <libcap.h>
+#include <libcap_platform_internal.h>
+
+/* INTERNAL TYPES -------------------------------------------------- */
+
+/* For now, these are lumped in here. */
 
 struct cnode;
 struct cdt_root_node;
@@ -25,12 +30,6 @@ enum allocation_state {
 	ALLOCATION_MARKED_FOR_DELETE,
 	ALLOCATION_REMOVED,
 };
-
-#ifdef __KERNEL__
-#include "libcap_internal_kernel.h"
-#else
-#include "libcap_internal_user.h"
-#endif
 
 struct cnode {
 	cptr_t cptr;
@@ -71,8 +70,12 @@ struct cdt_root_node {
 	enum allocation_state state;
 };
 
-/* The init and finish routines are defined in their own compoents. The
- * implementations differ between the kernel and userspace. */
+/* INTERNAL FUNCTIONS -------------------------------------------------- */
+
+/**
+ * The init and finish routines are defined in their own components. The
+ * implementations differ between the kernel and userspace.
+ */
 int __cptr_init(void);
 void __cptr_fini(void);
 
@@ -130,7 +133,7 @@ static inline void cap_cache_free(cap_cache_t *cache, void *obj)
 }
 
 /**
- * Spinlock wrappers.
+ * Bitop wrappers.
  */
 static inline void cap_set_bit(int nr, volatile unsigned long *addr)
 {

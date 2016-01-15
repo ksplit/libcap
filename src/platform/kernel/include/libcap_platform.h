@@ -23,4 +23,6 @@
 
 #define __cap_bug() BUG()
 
+#define __cap_bug_on(cond) BUG_ON(cond)
+
 #endif /* __LIBCAP_PLATFORM_H__ */

@@ -6,12 +6,9 @@
  *     Anton Burtsev <aburtsev@flux.utah.edu>
  *     Charles Jacobsen <charlesj@cs.utah.edu>
  * Copyright: University of Utah
- *
- * See Documentation/lcd-domains/cap.txt for extensive info.
  */
-#include "libcap.h"
-#include "libcap_types.h"
-#include "libcap_internal.h"
+#include <libcap.h>
+#include <libcap_internal.h>
 
 struct cdt_cache {
 	cap_mutex_t lock;
@@ -956,7 +953,7 @@ static int try_revoke(struct cspace *cspace, struct cnode *cnode)
 		 * If the child is in the cdt, its type should match cnode's
 		 * type (it shouldn't be invalid, free, or a cnode).
 		 */
-		BUG_ON(child->type != cnode->type);
+		CAP_BUG_ON(child->type != cnode->type);
 		/*
 		 * Delete from cdt. 
 		 */

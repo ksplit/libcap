@@ -38,36 +38,7 @@ extern int cap_debug_level;
 
 #define CAP_BUG() __cap_bug()
 
-
-/* /\* */
-/*  * Add some macros to generate built-in capability object type.  Not */
-/*  * ideal to put this here, but don't want to expose internal headers, */
-/*  * and have to give per-platform a chance to change them. */
-/*  *\/ */
-/* #define CAP_BUILD_CORE_TYPES(PT)				\ */
-/* 	typedef enum cap_type {					\ */
-/* 		CAP_TYPE_ERR = -1,				\ */
-/* 		CAP_TYPE_NONE = 0,				\ */
-/* 		CAP_TYPE_INVALID,				\ */
-/* 		CAP_TYPE_FREE,					\ */
-/* 		CAP_TYPE_CNODE,					\ */
-/* 		PT,						\ */
-/* 		CAP_TYPE_FIRST_NONBUILTIN			\ */
-/* 	} cap_type_t */
-/* #define CAP_BUILD_CORE_TYPES_NOBUILTIN()			\ */
-/* 	typedef enum cap_type {					\ */
-/* 		CAP_TYPE_NONE = 0,				\ */
-/* 		CAP_TYPE_INVALID,				\ */
-/* 		CAP_TYPE_FREE,					\ */
-/* 		CAP_TYPE_CNODE,					\ */
-/* 		CAP_TYPE_FIRST_NONBUILTIN			\ */
-/* 	} cap_type_t */
-
-/* #ifdef __KERNEL__ */
-/* #include "libcap_kernel.h" */
-/* #else */
-/* #include "libcap_user.h" */
-/* #endif */
+#define CAP_BUG_ON(cond) __cap_bug_on()
 
 /* CPTRs -------------------------------------------------- */
 
@@ -177,25 +148,6 @@ static inline int cptr_is_null(cptr_t c)
 }
 
 /* CPTR CACHEs -------------------------------------------------- */
-
-/* #if (CAP_CSPACE_DEPTH == 4) */
-
-/* struct cptr_cache { */
-/* 	/\* lock *\/ */
-/* 	cap_mutex_t lock; */
-/* 	/\* level 0 bitmap *\/ */
-/* 	unsigned long bmap0[CAP_BITS_TO_LONGS(CAP_CSPACE_SLOTS_IN_LEVEL(0))]; */
-/* 	/\* level 1 bitmap *\/ */
-/* 	unsigned long bmap1[CAP_BITS_TO_LONGS(CAP_CSPACE_SLOTS_IN_LEVEL(1))]; */
-/* 	/\* level 2 bitmap *\/ */
-/* 	unsigned long bmap2[CAP_BITS_TO_LONGS(CAP_CSPACE_SLOTS_IN_LEVEL(2))]; */
-/* 	/\* level 3 bitmap *\/ */
-/* 	unsigned long bmap3[CAP_BITS_TO_LONGS(CAP_CSPACE_SLOTS_IN_LEVEL(3))]; */
-/* }; */
-
-/* #else */
-/* #error "You need to adjust the cptr cache def." */
-/* #endif */
 
 /**
  * cptr_init -- Initalize the cptr cache subsystem

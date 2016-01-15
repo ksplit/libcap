@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <assert.h>
 
 CAP_BUILD_CORE_TYPES_NOBUILTIN();
 
@@ -18,6 +19,7 @@ CAP_BUILD_CORE_TYPES_NOBUILTIN();
 
 #define __cap_bug() \
 	abort()
-
+#define __cap_bug_on(cond) \
+	assert(!(cond))
 
 #endif /* __LIBCAP_USER_H__ */

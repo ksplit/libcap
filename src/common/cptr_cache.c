@@ -6,9 +6,8 @@
  *   Pankaj Kumar <pankajk@cs.utah.edu>
  */
 
-#include "libcap.h"
-#include "libcap_types.h"
-#include "libcap_internal.h"
+#include <libcap.h>
+#include <libcap_internal.h>
 
 #if (CAP_CSPACE_DEPTH == 4)
 static inline unsigned long* 

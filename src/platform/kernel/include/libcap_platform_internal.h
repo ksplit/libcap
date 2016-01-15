@@ -1,5 +1,13 @@
-#ifndef __LIBCAP_INTERNAL_KERNEL_H__
-#define __LIBCAP_INTERNAL_KERNEL_H__
+/*
+ * libcap_platform_internal.h
+ *
+ * Kernel-specific defs for libcap internals. Defs for
+ * locking, memory allocation, and so on.
+ *
+ * Copyright: University of Utah
+ */
+#ifndef __LIBCAP_PLATFORM_INTERNAL_H__
+#define __LIBCAP_PLATFORM_INTERNAL_H__
 
 #include <linux/list.h>
 #include <linux/sched.h>
@@ -7,15 +15,16 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/string.h>
-#include "libcap_types.h"
+
+#include <libcap_platform_types.h>
+
+/* STRING MALLOC ---------------------------------------- */
 
 #define strdup(str) kstrdup(str,GFP_KERNEL)
 #define free(ptr) kfree(ptr)
 
-/**
- * Mutex support.
- */
-typedef struct mutex cap_mutex_t;
+/* MUTEXs -------------------------------------------------- */
+
 static inline int __cap_mutex_init(cap_mutex_t *mutex)
 {
 	mutex_init(mutex);
@@ -44,9 +53,8 @@ static inline int __cap_mutex_unlock(cap_mutex_t *mutex)
 	return 0;
 }
 
-/**
- * Cache support.
- */
+/* SLAB CACHEs -------------------------------------------------- */
+
 typedef struct kmem_cache cap_cache_t;
 #define __cap_cache_create(__struct)					\
     kmem_cache_create(#__struct,					\
@@ -73,19 +81,23 @@ static inline void __cap_cache_free(cap_cache_t *cache, void *obj)
 	kmem_cache_free(cache, obj);
 }
 
-/**
- * Spinlock macros.
- */
+/* ATOMIC BITOPS -------------------------------------------------- */
+
 #define __cap_set_bit set_bit
 #define __cap_clear_bit clear_bit
 
-/**
- * Memory.
- */
+/* MALLOC -------------------------------------------------- */
+
 #define __cap_zalloc(nmemb,size) kzalloc((nmemb)*(size),GFP_KERNEL)
 #define __cap_free(addr) kfree(addr)
 
+#define strdup(str) kstrdup(str,GFP_KERNEL)
+#define free(ptr) kfree(ptr)
+
+/* MISC -------------------------------------------------- */
+
+/* These will change when libcap has full support for LCDs */
 static inline int __cptr_init(void) { return 0; }
 static inline void __cptr_fini(void) { }
 
-#endif /* __LIBCAP_INTERNAL_KERNEL_H__ */
+#endif /* __LIBCAP_PLATFORM_INTERNAL_H__ */
