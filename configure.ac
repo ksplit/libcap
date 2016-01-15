@@ -113,6 +113,11 @@ if test ${ENABLE_KERNEL} -eq 1 ; then
                      src/kernel/cap_module.c:src/kernel/cap_module.c])
 fi
 
+AC_CONFIG_COMMANDS([privconfigh],
+       [egrep 'define (PACKAGE|VERSION)' include/libcap_config.h > include/libcap_config_internal.h
+        egrep -v 'define (PACKAGE|VERSION)' include/libcap_config.h > include/libcap_config.h.tmp
+        mv include/libcap_config.h.tmp include/libcap_config.h],[])
+
 AC_CONFIG_FILES(
   Makefile
   include/Makefile
