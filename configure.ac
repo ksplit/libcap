@@ -34,12 +34,12 @@ AS_CASE([$host],
 
 
 # --------------------------------------------------
-# libcap features and packages
+# libcap features, packages, and config
 # --------------------------------------------------
 
+# Platform = user xor kernel
 AC_ARG_VAR([PLATFORM],
     [The platform to build for @{:@user|kernel@:}@ (default=user)])
-
 AS_CASE([$PLATFORM],
     [user],
     [],
@@ -51,8 +51,42 @@ AS_CASE([$PLATFORM],
         AC_MSG_NOTICE([Defaulting to PLATFORM=user.])
         PLATFORM=user
     ])
+AC_MSG_NOTICE([Building for PLATFORM=$PLATFORM.])
 AC_SUBST(PLATFORM)
 
+# CSpace depth. We use bits to enforce that the depth is a power of 2.
+AC_ARG_VAR([CSPACE_DEPTH_BITS],
+    [Set CSPACE depth to 2^CSPACE_DEPTH_BITS (default=2, default depth=4)])
+AS_IF([test "x$CSPACE_DEPTH_BITS" = "x"],
+    [CSPACE_DEPTH_BITS="2"]) # default
+AS_CASE([$CSPACE_DEPTH_BITS],
+
+    [@<:@0-8@:>@],
+    [CAP_CSPACE_DEPTH_BITS=$CSPACE_DEPTH_BITS],
+
+    [*],
+    [
+        AC_MSG_ERROR([CSpace depth bits (val=$CSPACE_DEPTH_BITS) invalid. Please choose a value between 0 and 8.])
+    ])
+AC_MSG_NOTICE([CSpace depth bits = $CAP_CSPACE_DEPTH_BITS.])
+
+# CNode table size. Again, we use bits to enforce that it's a power of 2.
+AC_ARG_VAR([CSPACE_CNODE_TABLE_BITS],
+    [CNode tables have 2^CSPACE_CNODE_TABLE_BITS total slots (default=6, default size=64)])
+AS_IF([test "x$CSPACE_CNODE_TABLE_BITS" = "x"],
+    [CSPACE_CNODE_TABLE_BITS="6"]) # default
+AS_CASE([$CSPACE_CNODE_TABLE_BITS],
+
+    [@<:@1-9@:>@],
+    [CAP_CSPACE_CNODE_TABLE_BITS=$CSPACE_CNODE_TABLE_BITS],
+
+    [*],
+    [
+        AC_MSG_ERROR([CSpace cnode table bits (val=$CSPACE_CNODE_TABLE_BITS) invalid. Please choose a value between 1 and 9.])
+    ])
+AC_MSG_NOTICE([CNode table bits = $CAP_CSPACE_CNODE_TABLE_BITS.])
+
+# Kernel module build?
 AS_IF([test "x$PLATFORM" = "xkernel"],
 
     [
@@ -89,6 +123,7 @@ AC_PROG_LIBTOOL
 AC_PROG_LN_S
 AC_PROG_MKDIR_P
 AC_PROG_INSTALL
+AC_PROG_AWK # for a calculation below
 
 # --------------------------------------------------
 # Checks for libraries.
@@ -177,6 +212,26 @@ AC_TYPE_SIZE_T
 AC_TYPE_UINT8_T
 AC_CHECK_SIZEOF([unsigned long])
 
+# Sanity check cspace depth and cnode table size, now that we
+# have the size of an unsigned long.
+AC_MSG_CHECKING([that cspace config is sane])
+cptr_size=`$AWK "BEGIN { print (2 ** $CAP_CSPACE_DEPTH_BITS) * ($CAP_CSPACE_CNODE_TABLE_BITS - 1) + $CAP_CSPACE_DEPTH_BITS }"`
+long_size=`$AWK "BEGIN { print $ac_cv_sizeof_unsigned_long * 8 }"`
+AS_IF([test "$cptr_size" -gt "$long_size"],
+    [
+        AC_MSG_RESULT([no])
+        AC_MSG_NOTICE([The cspace configuration you chose won't work.])
+        AC_MSG_NOTICE([Your choice must fulfill this:])
+        AC_MSG_NOTICE([  let a = 2^cspace depth bits])
+        AC_MSG_NOTICE([  let b = a * (table bits - 1) + cspace depth bits])
+        AC_MSG_NOTICE([  let c = bits in an unsigned long])
+        AC_MSG_NOTICE([  require: b <= c])
+        AC_MSG_NOTICE([(This has to do with packing bits into an unsigned long for cptr's.)])
+        AC_MSG_NOTICE([FYI - The default (depth bits = 2, table bits = 6) should work on 64- and 32-bit.])
+        AC_MSG_ERROR([Please re-configure with different cspace settings.])
+    ])
+AC_MSG_RESULT([yes])
+
 # --------------------------------------------------
 # Checks for structures
 # --------------------------------------------------
@@ -202,6 +257,9 @@ AC_CONFIG_FILES(
   Makefile
 
   src/Makefile
+  src/include/Makefile
+
+  src/include/libcap_config.h
 
   src/platform/Makefile
   src/platform/kernel/Makefile
@@ -222,6 +280,3 @@ AC_CONFIG_FILES(
 )
 AC_OUTPUT
 
-if ((CAP_CSPACE_DEPTH * (CAP_CSPACE_CNODE_TABLE_BITS - 1) +	\
-		CAP_CSPACE_DEPTH_BITS) > (SIZEOF_UNSIGNED_LONG * 8))
-error "Adjust cspace sizing, otherwise cptrs won't work."
