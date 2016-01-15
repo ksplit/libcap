@@ -1,0 +1,40 @@
+/* 
+ * libcap_config.h
+ *
+ * Copyright: University of Utah
+ */
+#ifndef __LIBCAP_CONFIG_H__
+#define __LIBCAP_CONFIG_H__
+
+/* CSPACE CONFIGURATION ---------------------------------------- */
+
+/* 
+ * Controls how many levels can be in the cspace radix tree.
+ *
+ * The depth must be at least 1 and a power of 2, since there is always at 
+ * least one root level.
+ */
+#define CAP_CSPACE_DEPTH_BITS @CAP_CSPACE_DEPTH_BITS@
+#define CAP_CSPACE_DEPTH (1 << CAP_CSPACE_DEPTH_BITS)
+
+/*
+ * Controls the size of each node in the cspace radix tree, and the
+ * degree of fanout. Each node in the radix tree contains
+ * CAP_CSPACE_CNODE_TABLE_SIZE slots; the first half store capabilities,
+ * and the second half store pointers to further nodes in the tree.
+ *
+ * The table size must be a power of 2 and at least 2, (1) because of how the 
+ * cptr allocation algorithm works, and (2) because a cnode table needs at 
+ * least one capability slot and one pointer slot.
+ *
+ * All of the data - the level, fanout sections, and slot - must fit
+ * inside an unsigned long. The current configuration was chosen so
+ * that this works on 32- and 64-bit. The cspace size is fairly
+ * significant - over 1 million slot capacity. You don't want it to
+ * be too big or else the (inefficient) cptr cache with bitmaps will
+ * be enormous.
+ */
+#define CAP_CSPACE_CNODE_TABLE_BITS @CAP_CSPACE_CNODE_TABLE_BITS@
+#define CAP_CSPACE_CNODE_TABLE_SIZE (1 << CAP_CSPACE_CNODE_TABLE_BITS)
+
+#endif /* __LIBCAP_CONFIG_H__ */

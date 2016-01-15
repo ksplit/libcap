@@ -1,67 +1,26 @@
-/* 
- * libcap primary header file and interface.
+/*
+ * libcap.h
  *
- * Author: Charles Jacobsen <charlesj@cs.utah.edu>
+ * Main include for libcap library. This is the only file
+ * you need to include to get the whole interface. All of
+ * the other headers are sucked in along with it.
+ *
  * Copyright: University of Utah
- *
- * This is the non-isolated code interface to the microkernel. The
- * implementation is in virt/lcd-domains/kliblcd.c.
- *
- * An LCD that runs in non-isolated code is called a klcd.
  */
 #ifndef __LIBCAP_H__
 #define __LIBCAP_H__
 
-#include "libcap_types.h"
+#include <libcap_config.h>
+#include <libcap_platform.h>
+#include <libcap_types.h>
+#include <libcap_platform_types.h>
 
-struct cnode;
-struct cspace;
+/* DEBUGGING ---------------------------------------- */
 
-struct cap_type_ops {
-	char *name;
-	int (*delete)(struct cspace *cspace, struct cnode *cnode, void *object);
-	int (*revoke)(struct cspace *cspace, struct cnode *cnode, void *object);
-};
+/* For now, put debug macros in the user-accessible part; convenient. */
 
-/*
- * Add some macros to generate built-in capability object type.  Not
- * ideal to put this here, but don't want to expose internal headers,
- * and have to give per-platform a chance to change them.
- */
-#define CAP_BUILD_CORE_TYPES(PT)				\
-	typedef enum cap_type {					\
-		CAP_TYPE_ERR = -1,				\
-		CAP_TYPE_NONE = 0,				\
-		CAP_TYPE_INVALID,				\
-		CAP_TYPE_FREE,					\
-		CAP_TYPE_CNODE,					\
-		PT,						\
-		CAP_TYPE_FIRST_NONBUILTIN			\
-	} cap_type_t
-#define CAP_BUILD_CORE_TYPES_NOBUILTIN()			\
-	typedef enum cap_type {					\
-		CAP_TYPE_NONE = 0,				\
-		CAP_TYPE_INVALID,				\
-		CAP_TYPE_FREE,					\
-		CAP_TYPE_CNODE,					\
-		CAP_TYPE_FIRST_NONBUILTIN			\
-	} cap_type_t
+/* This is near the top so we can use it in any static inlines below. */
 
-#ifdef __KERNEL__
-#include "libcap_kernel.h"
-#else
-#include "libcap_user.h"
-#endif
-
-#ifndef CAP_TYPE_MAX
-#define CAP_TYPE_MAX 256
-#endif
-
-#define CAP_BUG() __cap_bug()
-
-/**
- * For now, put debug macros in the user-accessible part; convenient.
- */
 extern int cap_debug_level;
 
 #define CAP_ERR __cap_err
@@ -77,10 +36,40 @@ extern int cap_debug_level;
 	    __cap_debug(msg,## __VA_ARGS__);				\
 	}
 
+#define CAP_BUG() __cap_bug()
+
+
+/* /\* */
+/*  * Add some macros to generate built-in capability object type.  Not */
+/*  * ideal to put this here, but don't want to expose internal headers, */
+/*  * and have to give per-platform a chance to change them. */
+/*  *\/ */
+/* #define CAP_BUILD_CORE_TYPES(PT)				\ */
+/* 	typedef enum cap_type {					\ */
+/* 		CAP_TYPE_ERR = -1,				\ */
+/* 		CAP_TYPE_NONE = 0,				\ */
+/* 		CAP_TYPE_INVALID,				\ */
+/* 		CAP_TYPE_FREE,					\ */
+/* 		CAP_TYPE_CNODE,					\ */
+/* 		PT,						\ */
+/* 		CAP_TYPE_FIRST_NONBUILTIN			\ */
+/* 	} cap_type_t */
+/* #define CAP_BUILD_CORE_TYPES_NOBUILTIN()			\ */
+/* 	typedef enum cap_type {					\ */
+/* 		CAP_TYPE_NONE = 0,				\ */
+/* 		CAP_TYPE_INVALID,				\ */
+/* 		CAP_TYPE_FREE,					\ */
+/* 		CAP_TYPE_CNODE,					\ */
+/* 		CAP_TYPE_FIRST_NONBUILTIN			\ */
+/* 	} cap_type_t */
+
+/* #ifdef __KERNEL__ */
+/* #include "libcap_kernel.h" */
+/* #else */
+/* #include "libcap_user.h" */
+/* #endif */
+
 /* CPTRs -------------------------------------------------- */
-
-#include "libcap_internal.h" /* temporary hack */
-
 
 /**
  * __cptr -- Construct a cptr from an unsigned long
@@ -189,24 +178,24 @@ static inline int cptr_is_null(cptr_t c)
 
 /* CPTR CACHEs -------------------------------------------------- */
 
-#if (CAP_CSPACE_DEPTH == 4)
+/* #if (CAP_CSPACE_DEPTH == 4) */
 
-struct cptr_cache {
-	/* lock */
-	cap_mutex_t lock;
-	/* level 0 bitmap */
-	unsigned long bmap0[CAP_BITS_TO_LONGS(CAP_CSPACE_SLOTS_IN_LEVEL(0))];
-	/* level 1 bitmap */
-	unsigned long bmap1[CAP_BITS_TO_LONGS(CAP_CSPACE_SLOTS_IN_LEVEL(1))];
-	/* level 2 bitmap */
-	unsigned long bmap2[CAP_BITS_TO_LONGS(CAP_CSPACE_SLOTS_IN_LEVEL(2))];
-	/* level 3 bitmap */
-	unsigned long bmap3[CAP_BITS_TO_LONGS(CAP_CSPACE_SLOTS_IN_LEVEL(3))];
-};
+/* struct cptr_cache { */
+/* 	/\* lock *\/ */
+/* 	cap_mutex_t lock; */
+/* 	/\* level 0 bitmap *\/ */
+/* 	unsigned long bmap0[CAP_BITS_TO_LONGS(CAP_CSPACE_SLOTS_IN_LEVEL(0))]; */
+/* 	/\* level 1 bitmap *\/ */
+/* 	unsigned long bmap1[CAP_BITS_TO_LONGS(CAP_CSPACE_SLOTS_IN_LEVEL(1))]; */
+/* 	/\* level 2 bitmap *\/ */
+/* 	unsigned long bmap2[CAP_BITS_TO_LONGS(CAP_CSPACE_SLOTS_IN_LEVEL(2))]; */
+/* 	/\* level 3 bitmap *\/ */
+/* 	unsigned long bmap3[CAP_BITS_TO_LONGS(CAP_CSPACE_SLOTS_IN_LEVEL(3))]; */
+/* }; */
 
-#else
-#error "You need to adjust the cptr cache def."
-#endif
+/* #else */
+/* #error "You need to adjust the cptr cache def." */
+/* #endif */
 
 /**
  * cptr_init -- Initalize the cptr cache subsystem

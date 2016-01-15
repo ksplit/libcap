@@ -221,3 +221,7 @@ AC_CONFIG_FILES(
   test/kernel/Makefile
 )
 AC_OUTPUT
+
+if ((CAP_CSPACE_DEPTH * (CAP_CSPACE_CNODE_TABLE_BITS - 1) +	\
+		CAP_CSPACE_DEPTH_BITS) > (SIZEOF_UNSIGNED_LONG * 8))
+error "Adjust cspace sizing, otherwise cptrs won't work."

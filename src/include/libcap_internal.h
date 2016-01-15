@@ -1,7 +1,18 @@
+/*
+ * libcap_internal.h
+ *
+ * Main platform-independent internal header.
+ *
+ * Contains defs for internal types -- cspaces, cnodes,
+ * and so on -- as well as wrappers around platform-dependent
+ * functions, like memory allocators.
+ *
+ * Copyright: University of Utah
+ */
 #ifndef __LIBCAP_INTERNAL_H__
 #define __LIBCAP_INTERNAL_H__
 
-#include "libcap_types.h"
+#include <libcap.h>
 
 struct cnode;
 struct cdt_root_node;

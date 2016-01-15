@@ -1,11 +1,16 @@
-#ifndef __LIBCAP_KERNEL_H__
-#define __LIBCAP_KERNEL_H__
+/*
+ * libcap_platform.h
+ *
+ * Kernel-specific implementations of cap functions.
+ *
+ * Copyright: University of Utah
+ */
+#ifndef __LIBCAP_PLATFORM_H__
+#define __LIBCAP_PLATFORM_H__
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/bug.h>
-
-CAP_BUILD_CORE_TYPES_NOBUILTIN();
 
 #define __cap_err(format,...) \
     printk(KERN_ERR "cap: %s:%d: "format,__FUNCTION__,__LINE__,##__VA_ARGS__)
@@ -18,4 +23,4 @@ CAP_BUILD_CORE_TYPES_NOBUILTIN();
 
 #define __cap_bug() BUG()
 
-#endif /* __LIBCAP_KERNEL_H__ */
+#endif /* __LIBCAP_PLATFORM_H__ */
