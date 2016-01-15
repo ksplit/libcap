@@ -3,7 +3,6 @@
 
 AC_PREREQ([2.69])
 AC_INIT([libcap], [0.1])
-AS_INIT
 AC_CONFIG_SRCDIR([src/common/cptr_cache.c])
 AC_CONFIG_AUX_DIR(autoconf)
 AC_CONFIG_HEADERS([config.h])
@@ -18,46 +17,66 @@ AM_INIT_AUTOMAKE([subdir-objects foreign])
 
 AC_CANONICAL_HOST
 
-AC_MESSAGE_CHECKING([for OS X host])
-AS_CASE($host
+AC_MSG_CHECKING([for OS X host])
+AS_CASE([$host],
 
-    [-*-*-darwin*]
+    [-*-*-darwin*],
     [
-        AC_MESSAGE_RESULT([yes])
+        AC_MSG_RESULT([yes])
         AC_DEFINE(CAP_OS_DARWIN, 1, [Build for OS X host])
         AC_SUBST(CAP_OS_DARWIN)
+    ],
+
+    [*],
+    [
+        AC_MSG_RESULT([no])
     ])
+
 
 # --------------------------------------------------
 # libcap features and packages
 # --------------------------------------------------
 
 AC_ARG_VAR([PLATFORM],
-    [AS_HELP_STRING([PLATFORM=@{:@user|kernel@:}@],
-        [The platform to build for (default=user)])])
-AS_IF([test "x$PLATFORM" = "x"],
-    [PLATFORM=user])
+    [The platform to build for @{:@user|kernel@:}@ (default=user)])
+
+AS_CASE([$PLATFORM],
+    [user],
+    [],
+    [kernel],
+    [],
+    [*],
+    [
+        AC_MSG_NOTICE([PLATFORM (val=$PLATFORM) unset or invalid.])
+        AC_MSG_NOTICE([Defaulting to PLATFORM=user.])
+        PLATFORM=user
+    ])
 AC_SUBST(PLATFORM)
 
-AS_IF([test "x$PLATFORM" = "xkernel"]
+AS_IF([test "x$PLATFORM" = "xkernel"],
 
     [
         # Build libcap as kernel module, in addition to static lib.a
         AC_ARG_ENABLE([kernel_module],
             [AS_HELP_STRING([--disable-kernel-module],
-                [Disable kernel module build (default=no)])],
-            [ENABLE_KERNEL_MODULE="$enable_kernel_module"],
-            [ENABLE_KERNEL_MODULE="yes"])
-        AC_SUBST(ENABLE_KERNEL_MODULE)
+                [Disable kernel module build (default=no)])])
+        AM_CONDITIONAL(ENABLE_KERNEL_MODULE, 
+            [test "x$enable_kernel_module" = "xyes"])
+
+    ],
+
+    [
+
+        AM_CONDITIONAL(ENABLE_KERNEL_MODULE, 
+            [false])
 
     ])
 
 AC_ARG_ENABLE([test_build],
     [AS_HELP_STRING([--disable-test-build],
-        [Disable building test applications (default=no)])],
-    [ENABLE_TEST_BUILD="$enable_test_build"],
-    [ENABLE_TEST_BUILD="yes"])
-AC_SUBST(ENABLE_TEST_BUILD)
+        [Disable building test applications (default=no)])])
+AM_CONDITIONAL(ENABLE_TEST_BUILD, 
+    [test "x$enable_test_build" = "xyes"])
 
 # --------------------------------------------------
 # Checks for programs.
@@ -92,8 +111,12 @@ AS_IF([test "x$PLATFORM" = "xuser"],
         # Set up vars for the glib check
         old_CFLAGS=$CFLAGS
         old_LDFLAGS=$LDFLAGS
-        GLIB_INCLUDES=`pkg-config --cflags $GLIB/lib/pkgconfig.pc`
-        GLIB_LIBS=`pkg-config --libs $GLIB/lib/pkgconfig.pc`
+        old_PKG_CONFIG_PATH=$PKG_CONFIG_PATH
+
+        # (It's tricky to try to locate the .pc file, so we don't
+        # try to do the absolute path with the call to pkg-config)
+        GLIB_INCLUDES=`pkg-config --cflags glib-2.0`
+        GLIB_LIBS=`pkg-config --libs glib-2.0`
         CFLAGS="${GLIB_INCLUDES} $CFLAGS"
         LDFLAGS="${GLIB_LIBS} $LDFLAGS"
     
@@ -110,6 +133,7 @@ AS_IF([test "x$PLATFORM" = "xuser"],
         # Restore vars
         CFLAGS="$old_CFLAGS"
         LDFLAGS="$old_LDFLAGS"
+        PKG_CONFIG_PATH="$old_PKG_CONFIG_PATH"
 
         AC_SUBST(GLIB_INCLUDES)
         AC_SUBST(GLIB_LIBS)
@@ -125,13 +149,14 @@ AS_IF([test "x$PLATFORM" = "xkernel"],
         AC_ARG_WITH([kernel-headers],
             [AS_HELP_STRING([--with-kernel-headers=DIRECTORY],
                 [find Linux kernel build stuff in DIRECTORY])],
-            [KDIR="$with_kernel"])
+            [KDIR="$with_kernel_headers"])
 
         # Sanity check it (in the future, we could maybe check the
         # kernel version in the top of the kernel Makefile)
         AC_CHECK_FILE($KDIR/Makefile,
-            [AC_MSG_ERROR([Could not find kernel Makefile in $KDIR!])],
-            [AC_MSG_NOTICE([Found kernel Makefile in $KDIR])])
+            [AC_MSG_NOTICE([Found kernel Makefile in $KDIR])],
+            [AC_MSG_ERROR([Could not find kernel Makefile in $KDIR!])])
+
 
         AC_SUBST(KDIR)
 
@@ -185,17 +210,11 @@ AC_CONFIG_FILES(
   src/platform/kernel/module/Kbuild:src/platform/kernel/module/Kbuild.in
   src/platform/Kbuild:src/platform/kernel/Kbuild.in
   src/platform/kernel/include/Makefile
-  src/platform/kernel/include/platform/Makefile
-  src/platform/kernel/include/platform/api/Makefile
-  src/platform/kernel/include/platform/internal/Makefile
 
   src/platform/user/Makefile
   src/platform/user/top_level
   src/platform/user/src/Makefile
   src/platform/user/include/Makefile
-  src/platform/user/include/platform/Makefile
-  src/platform/user/include/platform/api/Makefile
-  src/platform/user/include/platform/internal/Makefile
 
   test/Makefile
   test/user/Makefile

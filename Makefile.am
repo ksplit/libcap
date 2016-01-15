@@ -2,7 +2,7 @@ ACLOCAL_AMFLAGS = -I m4
 
 SUBDIRS = src
 
-ifeq ($(ENABLE_TEST_BUILD),yes)
+if ENABLE_TEST_BUILD
 SUBDIRS += test
 endif
 

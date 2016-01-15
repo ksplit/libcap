@@ -1,17 +1,10 @@
 # Ignore most files made by `bootstrap'.
-Makefile.in
+*Makfile.in
 aclocal.m4
 autom4te.cache
 config.h.in
 configure
-src/kernel/Makefile.in
-src/user/Makefile.in
-src/Makefile.in
-include/Makefile.in
-Makefile.in
-test/kernel/Makefile.in
-test/user/Makefile.in
-test/Makefile.in
+*top_level.in
 
 # Ignore other files.
 config.log

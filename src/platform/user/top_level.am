@@ -15,5 +15,5 @@ libcap_a_LIBADD = $(GLIB_LDFLAGS)
 
 # Build libcap as shared lib using libtool
 lib_LTLIBRARIES = libcap.la
-libcap_la_LTLIBRARIES = $(USER_SRCS)
+libcap_la_SOURCES = $(USER_SRCS)
 libcap_la_LIBADD = $(GLIB_LDFLAGS)

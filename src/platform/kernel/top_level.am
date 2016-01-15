@@ -10,31 +10,28 @@ export COMMON_INCLUDES COMMON_SRCS
 LIBCAP_KBUILD=$(PWD)
 LIBCAP_KERNEL_MODULE_KBUILD=$(PWD)/platform/kernel/module
 
-# We need to build the static library first before the kernel
-# module (the kernel module links it in)
-all:
-	$(MAKE) -C $(KDIR) M=$(LIBCAP_KBUILD) \
-		CPPFLAGS="$(AM_CPPFLAGS) $(CPPFLAGS)"; \
-ifeq ($(ENABLE_KERNEL_MODULE),yes)
-	$(MAKE) -C $(KDIR) M=$(LIBCAP_KERNEL_MODULE_KBUILD) \
-		CPPFLAGS="$(AM_CPPFLAGS) $(CPPFLAGS)"
-else
-	;
+# Automake if's aren't as powerful as GNU Make's (boo)
+all_cmd = $(MAKE) -C $(KDIR) M=$(LIBCAP_KBUILD) \
+	CPPFLAGS="$(AM_CPPFLAGS) $(CPPFLAGS)" modules
+install_cmd = $(MAKE) -C $(KDIR) M=$(LIBCAP_KBUILD) modules_install
+clean_cmd = $(MAKE) -C $(KDIR) M=$(LIBCAP_KBUILD) clean
+
+if ENABLE_KERNEL_MODULE
+
+all_cmd += ; $(MAKE) -C $(KDIR) M=$(LIBCAP_KERNEL_MODULE_KBUILD) \
+	CPPFLAGS="$(AM_CPPFLAGS) $(CPPFLAGS)" modules
+install_cmd += ; $(MAKE) -C $(KDIR) M=$(LIBCAP_KERNEL_MODULE_KBUILD) \
+	modules_install
+clean_cmd += ; $(MAKE) -C $(KDIR) M=$(LIBCAP_KERNEL_MODULE_KBUILD) clean
+
 endif
+
+all:
+	$(all_cmd)
 
 install:
-	$(MAKE) -C $(KDIR) M=$(LIBCAP_KBUILD) install; \
-ifeq ($(ENABLE_KERNEL_MODULE),yes)
-	$(MAKE) -C $(KDIR) M=$(LIBCAP_KERNEL_MODULE_KBUILD) install
-else
-	;
-endif
+	$(install_cmd)
 
 clean:
-	$(MAKE) -C $(KDIR) M=$(LIBCAP_KBUILD) clean; \
-ifeq ($(ENABLE_KERNEL_MODULE),yes)
-	$(MAKE) -C $(KDIR) M=$(LIBCAP_KERNEL_MODULE_KBUILD) clean
-else
-	;
-endif
+	$(clean_cmd)
 
