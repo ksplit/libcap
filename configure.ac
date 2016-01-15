@@ -5,7 +5,7 @@ AC_PREREQ([2.69])
 AC_INIT([libcap], [0.1])
 AC_CONFIG_SRCDIR([src/common/cptr_cache.c])
 AC_CONFIG_AUX_DIR(autoconf)
-AC_CONFIG_HEADERS([include/config.h])
+AC_CONFIG_HEADERS([include/libcap_config.h])
 
 LT_INIT
 AC_CONFIG_MACRO_DIR([m4])

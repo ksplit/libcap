@@ -8,7 +8,7 @@
 #ifndef __LIBCAP_TYPES_H__
 #define __LIBCAP_TYPES_H__
 
-#include "config.h"
+#include "libcap_config.h"
 
 /* HELPERS -------------------------------------------------- */
 
