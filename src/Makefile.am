@@ -1,4 +1,10 @@
-SUBDIRS = user $(MAYBE_KERNEL)
-DIST_SUBDIRS = user kernel
 
-#include_HEADERS= $(top_srcdir)/include
+COMMON_SRCS = \
+	common/cap.o \
+	common/cptr_cache.o
+
+COMMON_INCLUDES = include
+
+SUBDIRS = common include $(PLATFORM_DIR)
+DIST_SUBDIRS = common include platform
+

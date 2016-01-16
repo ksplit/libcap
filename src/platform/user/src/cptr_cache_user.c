@@ -1,6 +1,6 @@
 
-#include "libcap.h"
-#include "libcap_internal.h"
+#include <libcap.h>
+#include <libcap_internal.h>
 
 pthread_spinlock_t *__spinlocks;
 int __cache_lines;

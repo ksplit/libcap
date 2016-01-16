@@ -434,7 +434,6 @@ int main()
 		CAP_ERR("libcap init failed");
 		return ret;
 	}
-	cptr_init();
 
 	stringobj_type = cap_register_type(stringobj_type, &stringobj_ops);
 
@@ -442,7 +441,6 @@ int main()
 	ret = testcase_grant();
 	ret = testcase_revoke();
 
-	cptr_fini();
 	cap_fini();
 
 	return ret;

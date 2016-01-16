@@ -1,3 +1,8 @@
+/*
+ * libcap_list.h
+ *
+ * From Linux kernel
+ */
 #ifndef _LINUX_LIST_H
 #define _LINUX_LIST_H
 

@@ -1,5 +1,13 @@
-#ifndef __LIBCAP_INTERNAL_USER_H__
-#define __LIBCAP_INTERNAL_USER_H__
+/*
+ * libcap_platform_internal.h
+ *
+ * Userlevel-specific defs for libcap internals. Defs for
+ * locking, memory allocation, and so on.
+ *
+ * Copyright: University of Utah
+ */
+#ifndef __LIBCAP_PLATFORM_INTERNAL_H__
+#define __LIBCAP_PLATFORM_INTERNAL_H__
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -11,20 +19,48 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <glib.h>
-#include "libcap.h"
-#include "libcap_types.h"
-#include "list.h"
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
 
-#ifdef __APPLE__
-#include "compat_internal/osx_user.h"
+#include <libcap_platform_types.h>
+#include <libcap_list.h>
+
+#ifdef CAP_OS_DARWIN
+#include "osx_user.h"
 #endif
 
-/**
- * Cache support.
- */
+/* MUTEXs -------------------------------------------------- */
+
+/* Follow kernel return conventions. */
+
+static inline int __cap_mutex_init(cap_mutex_t * mutex)
+{
+	return -pthread_mutex_init(mutex, NULL);
+}
+
+static inline int __cap_mutex_lock(cap_mutex_t * mutex)
+{
+	return -pthread_mutex_lock(mutex);
+}
+
+static inline int __cap_mutex_trylock(cap_mutex_t * mutex)
+{
+	return -pthread_mutex_trylock(mutex);
+}
+
+static inline int __cap_mutex_lock_interruptible(cap_mutex_t * mutex)
+{
+	return -pthread_mutex_lock(mutex);
+}
+
+static inline int __cap_mutex_unlock(cap_mutex_t * mutex)
+{
+	return -pthread_mutex_unlock(mutex);
+}
+
+/* SLAB CACHEs -------------------------------------------------- */
+
 struct cap_gslice_fakeslab {
 	size_t size;
 };
@@ -66,10 +102,16 @@ static inline void __cap_cache_free(cap_cache_t *cache, void *obj)
 	g_slice_free1(cache->size, obj);
 }
 
+/* ATOMIC BITOPS -------------------------------------------------- */
 
+/* 
+ * Can we somehow use compiler built-ins here for atomic ops? Maybe
+ * use some CPP macros conditioned on the compiler type? Leaving this
+ * alone for now - CJ
+ */
 
 /**
- * Spinlocks.  An array of pthread spinlocks.  We have one for each L1
+ * An array of pthread spinlocks.  We have one for each L1
  * cache line.  This is stupid because glibc x86 pthread_spinlock_t is
  * an int, but we *hope* that pthreads is smarter about spinlocks than
  * we would be by ourselves (or than a straight userspace port of linux
@@ -105,7 +147,6 @@ static inline void __cap_atomic_spin_unlock(void *addr)
 
 #define BIT_MASK(nr)            (1UL << ((nr) % BITS_PER_LONG))
 #define BIT_WORD(nr)            ((nr) / BITS_PER_LONG)
-#define BITS_PER_BYTE           8
 
 static inline void __cap_set_bit(int nr, volatile unsigned long *addr)
 {
@@ -129,32 +170,6 @@ static inline void __cap_clear_bit(int nr, volatile unsigned long *addr)
 	__cap_atomic_spin_unlock(p);
 }
 
-/**
- * Memory.
- */
-#define __cap_zalloc(nmemb,size) calloc((nmemb),(size))
-#define __cap_free(addr) free(addr)
-
-#define msleep(ms) usleep(10 * (ms))
-#define BUG_ON(cond) assert(!(cond))
-
-#ifndef __WORDSIZE
-#define __WORDSIZE (sizeof(long) * 8)
-#endif
-
-#define BITS_PER_LONG __WORDSIZE
-
-#define BIT_MASK(nr)            (1UL << ((nr) % BITS_PER_LONG))
-#define BIT_WORD(nr)            ((nr) / BITS_PER_LONG)
-#define BITS_PER_BYTE           8
-#ifndef DIV_ROUND_UP
-#define DIV_ROUND_UP(n,d) (((n) + (d) - 1) / (d))
-#endif
-#define BITS_TO_LONGS(nr)       DIV_ROUND_UP(nr, BITS_PER_BYTE * sizeof(long))
-#define BITS_TO_U64(nr)         DIV_ROUND_UP(nr, BITS_PER_BYTE * sizeof(u64))
-#define BITS_TO_U32(nr)         DIV_ROUND_UP(nr, BITS_PER_BYTE * sizeof(u32))
-#define BITS_TO_BYTES(nr)       DIV_ROUND_UP(nr, BITS_PER_BYTE)
-
 #ifndef min
 #define min(x, y) ({                            \
         typeof(x) _min1 = (x);                  \
@@ -165,8 +180,9 @@ static inline void __cap_clear_bit(int nr, volatile unsigned long *addr)
 
 static inline unsigned long ffz(unsigned long word)
 {
- asm("rep; bsf %1,%0":"=r"(word)
- :	    "r"(~word));
+	asm("rep; bsf %1,%0"
+		: "=r"(word)
+		: "r"(~word));
 	return word;
 }
 
@@ -183,4 +199,13 @@ static unsigned long find_first_zero_bit(const unsigned long *addr,
 	return size;
 }
 
-#endif /* __LIBCAP_INTERNAL_USER_H__ */
+/* MALLOC -------------------------------------------------- */
+
+#define __cap_zalloc(nmemb,size) calloc((nmemb),(size))
+#define __cap_free(addr) free(addr)
+
+/* MISC -------------------------------------------------- */
+
+#define msleep(ms) usleep(10 * (ms))
+
+#endif /* __LIBCAP_PLATFORM_INTERNAL_H__ */

@@ -252,11 +252,6 @@ int main()
 		CAP_ERR("libcap init failed");
 		goto out;
 	}
-	ret = cptr_init();
-	if (ret < 0) {
-		CAP_ERR("cptr init failed");
-		goto cap_exit;
-	}
 
 	stringobj_type = cap_register_type(stringobj_type, &stringobj_ops);
 
@@ -265,7 +260,7 @@ int main()
 	scsp = cap_alloc_cspace();
 	if (!scsp) {
 		printf("Source Cspace allocation failed!\n");
-		goto cptr_exit;
+		goto cap_exit;
 	}
 
 	ret = cap_init_cspace(scsp);
@@ -360,8 +355,6 @@ destroy_scspace:
 	cap_destroy_cspace(scsp);
 free_scspace:
 	cap_free_cspace(scsp);
-cptr_exit:
-	cptr_fini();
 cap_exit:
 	cap_fini();
 out:

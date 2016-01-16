@@ -6,12 +6,9 @@
  *     Anton Burtsev <aburtsev@flux.utah.edu>
  *     Charles Jacobsen <charlesj@cs.utah.edu>
  * Copyright: University of Utah
- *
- * See Documentation/lcd-domains/cap.txt for extensive info.
  */
-#include "libcap.h"
-#include "libcap_types.h"
-#include "libcap_internal.h"
+#include <libcap.h>
+#include <libcap_internal.h>
 
 struct cdt_cache {
 	cap_mutex_t lock;
@@ -33,20 +30,40 @@ static unsigned long long cspace_id = 0;
 
 int cap_init(void)
 {
+	int ret;
+	/*
+	 * Initialize cptr cache subsystem
+	 */
+	ret = __cptr_init();
+	if (ret) {
+		CAP_ERR("failed to initialize cptr cache subsystem");
+		goto fail1;
+	}
 	/*
 	 * Initialize cdt cache
 	 */
 	cdt_cache.cdt_root_cache = cap_cache_create(cdt_root_node);
 	if (!cdt_cache.cdt_root_cache) {
 		CAP_ERR("failed to initialize cdt_root_node allocator");
-		return -ENOMEM;
-		return -1;
+		ret = -ENOMEM;
+		goto fail2;
 	}
+	/*
+	 * Initialize locks
+	 */
 	cap_mutex_init(&cdt_cache.lock);
 	cap_mutex_init(&global_lock);
+	/*
+	 * Zero out types
+	 */
 	memset(cap_types, 0, sizeof(cap_types));
-
+	
 	return 0;
+
+fail2:
+	__cptr_fini();
+fail1:
+	return ret;
 }
 
 void cap_fini(void)
@@ -62,6 +79,10 @@ void cap_fini(void)
 	for (i = CAP_TYPE_FIRST_NONBUILTIN; i < CAP_TYPE_MAX; ++i)
 		if (cap_types[i].name)
 			free(cap_types[i].name);
+	/*
+	 * Tear down cptr cache subsystem
+	 */
+	__cptr_fini();
 }
 
 cap_type_t cap_register_type(cap_type_t type, const struct cap_type_ops *ops)
@@ -447,7 +468,7 @@ static int __cap_cnode_get(struct cspace *cspace, cptr_t c,
 	ret = __cap_cnode_lookup(cspace, c, alloc, cnode);
 	if (ret) {
 		CAP_DEBUG(CAP_DEBUG_MSG,
-			"cnode lookup failed with ret = %d\n", ret)
+			"cnode lookup failed with ret = %d\n", ret);
 		goto fail2;
 	}
 
@@ -956,7 +977,7 @@ static int try_revoke(struct cspace *cspace, struct cnode *cnode)
 		 * If the child is in the cdt, its type should match cnode's
 		 * type (it shouldn't be invalid, free, or a cnode).
 		 */
-		BUG_ON(child->type != cnode->type);
+		CAP_BUG_ON(child->type != cnode->type);
 		/*
 		 * Delete from cdt. 
 		 */

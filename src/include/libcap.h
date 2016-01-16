@@ -1,67 +1,26 @@
-/* 
- * libcap primary header file and interface.
+/*
+ * libcap.h
  *
- * Author: Charles Jacobsen <charlesj@cs.utah.edu>
+ * Main include for libcap library. This is the only file
+ * you need to include to get the whole interface. All of
+ * the other headers are sucked in along with it.
+ *
  * Copyright: University of Utah
- *
- * This is the non-isolated code interface to the microkernel. The
- * implementation is in virt/lcd-domains/kliblcd.c.
- *
- * An LCD that runs in non-isolated code is called a klcd.
  */
 #ifndef __LIBCAP_H__
 #define __LIBCAP_H__
 
-#include "libcap_types.h"
+#include <libcap_config.h>
+#include <libcap_platform.h>
+#include <libcap_types.h>
+#include <libcap_platform_types.h>
 
-struct cnode;
-struct cspace;
+/* DEBUGGING ---------------------------------------- */
 
-struct cap_type_ops {
-	char *name;
-	int (*delete)(struct cspace *cspace, struct cnode *cnode, void *object);
-	int (*revoke)(struct cspace *cspace, struct cnode *cnode, void *object);
-};
+/* For now, put debug macros in the user-accessible part; convenient. */
 
-/*
- * Add some macros to generate built-in capability object type.  Not
- * ideal to put this here, but don't want to expose internal headers,
- * and have to give per-platform a chance to change them.
- */
-#define CAP_BUILD_CORE_TYPES(PT)				\
-	typedef enum cap_type {					\
-		CAP_TYPE_ERR = -1,				\
-		CAP_TYPE_NONE = 0,				\
-		CAP_TYPE_INVALID,				\
-		CAP_TYPE_FREE,					\
-		CAP_TYPE_CNODE,					\
-		PT,						\
-		CAP_TYPE_FIRST_NONBUILTIN			\
-	} cap_type_t
-#define CAP_BUILD_CORE_TYPES_NOBUILTIN()			\
-	typedef enum cap_type {					\
-		CAP_TYPE_NONE = 0,				\
-		CAP_TYPE_INVALID,				\
-		CAP_TYPE_FREE,					\
-		CAP_TYPE_CNODE,					\
-		CAP_TYPE_FIRST_NONBUILTIN			\
-	} cap_type_t
+/* This is near the top so we can use it in any static inlines below. */
 
-#ifdef __KERNEL__
-#include "libcap_kernel.h"
-#else
-#include "libcap_user.h"
-#endif
-
-#ifndef CAP_TYPE_MAX
-#define CAP_TYPE_MAX 256
-#endif
-
-#define CAP_BUG() __cap_bug()
-
-/**
- * For now, put debug macros in the user-accessible part; convenient.
- */
 extern int cap_debug_level;
 
 #define CAP_ERR __cap_err
@@ -72,10 +31,13 @@ extern int cap_debug_level;
 #define CAP_DEBUG_WARN 2
 #define CAP_DEBUG_MSG  3
 
-#define CAP_DEBUG(lvl, msg, ...) {					\
-	if (lvl <= cap_debug_level)					\
-	    __cap_debug(msg,## __VA_ARGS__);				\
-	}
+#define CAP_DEBUG(lvl,msg,...) do {					\
+		if (lvl <= cap_debug_level)				\
+			__cap_debug(msg,##__VA_ARGS__);			\
+	} while(0)
+
+#define CAP_BUG() do { __cap_bug(); } while(0)
+#define CAP_BUG_ON(cond) do { __cap_bug_on(cond); } while(0)
 
 /* CPTRs -------------------------------------------------- */
 
@@ -186,33 +148,6 @@ static inline int cptr_is_null(cptr_t c)
 
 /* CPTR CACHEs -------------------------------------------------- */
 
-#if (CAP_CSPACE_DEPTH == 4)
-
-struct cptr_cache {
-	/* lock */
-	cap_mutex_t lock;
-	/* level 0 bitmap */
-	unsigned long bmap0[CAP_BITS_TO_LONGS(CAP_CSPACE_SLOTS_IN_LEVEL(0))];
-	/* level 1 bitmap */
-	unsigned long bmap1[CAP_BITS_TO_LONGS(CAP_CSPACE_SLOTS_IN_LEVEL(1))];
-	/* level 2 bitmap */
-	unsigned long bmap2[CAP_BITS_TO_LONGS(CAP_CSPACE_SLOTS_IN_LEVEL(2))];
-	/* level 3 bitmap */
-	unsigned long bmap3[CAP_BITS_TO_LONGS(CAP_CSPACE_SLOTS_IN_LEVEL(3))];
-};
-
-#else
-#error "You need to adjust the cptr cache def."
-#endif
-
-/**
- * cptr_init -- Initalize the cptr cache subsystem
- */
-int cptr_init(void);
-/**
- * cptr_fini -- Tear down the cptr cache subsystem.
- */
-void cptr_fini(void);
 /**
  * cptr_cache_alloc -- Allocate a cptr cache data structure (not initialized)
  * @out: out param, pointer to newly alloc'd cache
@@ -264,16 +199,18 @@ void cptr_free(struct cptr_cache *cptr_cache, cptr_t c);
 /* CSPACES -------------------------------------------------- */
 
 /**
- * Initializes caches, etc. in capability subsystem. Called when microkernel
- * intializes.
+ * cap_init -- Initializes caches, etc. in capability subsystem.
+ *
+ * IMPORTANT: You should call this before any other functions in libcap.
  */
 int cap_init(void);
 /**
- * Tears down caches, etc. in capability subsystem. Called when microkernel
- * is exiting.
+ * cap_fini -- Tears down caches, etc. in capability subsystem.
+ *
+ * IMPORTANT (at least for kernel users): You should call this before
+ * libcap is unloaded.
  */
 void cap_fini(void);
-
 /**
  * cap_cspace_slots_in_level -- Return total number of slots in cspace at lvl
  * @lvl: the level to query
@@ -290,40 +227,80 @@ static inline int cap_cspace_slots_in_level(int lvl)
 		out *= CAP_CSPACE_CNODE_TABLE_SIZE/2;
 	return out;
 }
-
 /**
- * Register a new capability object type.  If you pass type == 0, the
- * system will select the next available identifier and return it.  You
- * should use the returned value as your object identifier.  If you
- * attempt to use a type that is already in use, this returns
- * -EADDRINUSE.  If there are no types remaining or you exceed
- * CAP_TYPE_MAX, this returns -ENOMEM .
- */
-cap_type_t cap_register_type(cap_type_t type, const struct cap_type_ops *ops);
-/**
- * Allocates a new cspace. If no memory could be allocated, returns NULL.
+ * cap_alloc_cspace -- Allocates a new cspace.
+ *
+ * (The struct def is internal for now, so you have to call this function
+ * to alloc.)
+ *
+ * If no memory could be allocated, returns NULL.
+ *
+ * Here is the run down on the cspace lifetime and functions:
+ *
+ *        cap_alloc_cspace    -- cspace allocated, not initialized
+ *        cap_init_cspace     -- initialize cspace internals
+ *        cap_destroy_cspace  -- clears out all of the slots in the cspace,
+ *                               destroys some internal caches
+ *        cap_free_cspace     -- frees the cspace itself
  */
 struct cspace * cap_alloc_cspace(void);
-
 /**
- * Frees a cspace allocated with `cap_alloc_cspace`.
- */
-void cap_free_cspace(struct cspace *cspace);
-
-/**
- * Sets up cspace - initializes lock, root cnode table, etc.
+ * cap_init_cspace -- Sets up cspace - initializes lock, root cnode table, etc.
+ * @cspace: the cspace to initialize
  */
 int cap_init_cspace(struct cspace *cspace);
 /**
- * Set the "owner" field of the given cspace
+ * cap_destroy_cspace -- 
+ * Equivalent to calling lcd_cap_delete on all cnodes in cspace. Frees up
+ * all cnode tables, etc.
+ */
+void cap_destroy_cspace(struct cspace *cspace);
+/**
+ * cap_free_cspace -- Frees a cspace allocated with `cap_alloc_cspace`.
+ * @cspace: the cspace to free, pointer invalid after this call
+ */
+void cap_free_cspace(struct cspace *cspace);
+/**
+ * cap_cspace_setowner -- Set the "owner" field of the given cspace
+ *
+ * This can be any object you wish. You will be able to access it
+ * via cap_cspace_getowner (perhaps it would be convenient for you
+ * to do so in one of the cap type ops, provide some kind of
+ * context for the cspace).
  */
 void cap_cspace_setowner(struct cspace *cspace, void * owner);
 /**
- * Get the "owner" field of the given cspace
+ * cap_cspace_getowner -- Get the "owner" field of the given cspace
  */
 void* cap_cspace_getowner(struct cspace *cspace);
 /**
- * Inserts object data into cspace at cnode pointed at by c.
+ * cap_register_type -- Register a new capability object type
+ * @type: integer type index / identifier
+ * @ops: the cap_type_ops to associate with this type
+ *
+ * If you pass type == 0, the system will select the next available 
+ * identifier and return it.  You should use the returned value as your 
+ * object identifier.  If you attempt to use a type that is already in use, 
+ * this returns -EADDRINUSE. If there are no types remaining or you exceed
+ * CAP_TYPE_MAX, this returns -ENOMEM.
+ *
+ * The built-in types are in libcap_platform.h in the definition of
+ * cap_type_t.
+ */
+cap_type_t cap_register_type(cap_type_t type, const struct cap_type_ops *ops);
+/**
+ * cap_insert -- Inserts object data into cspace at cnode pointed at by c
+ * @cspace: the cspace to insert the object into
+ * @c: the cptr that identifies which slot to insert the object into
+ * @object: the object to insert
+ * @type: the type to associate with @object
+ *
+ * You must register @type via cap_register_type before using it.
+ *
+ * The lifetime of @object must be at least as long as @object is
+ * in the cspace (it's up to you, the libcap user, to ensure that).
+ *
+ * If the slot is already occupied, or @c is invalid, returns non-zero.
  */
 int cap_insert(struct cspace *cspace, cptr_t c, void *object, cap_type_t type);
 /**
@@ -376,41 +353,34 @@ int cap_grant(struct cspace *cspacesrc, cptr_t c_src,
  */
 int cap_revoke(struct cspace *cspace, cptr_t c);
 /**
- * Equivalent to calling lcd_cap_delete on all cnodes in cspace. Frees up
- * all cnode tables, etc.
- */
-void cap_destroy_cspace(struct cspace *cspace);
-/**
- * Looks up cnode at cap in cspace.
+ * cap_cnode_get -- Return the cnode that this cptr points to in cspace
+ * @cspace: the cspace to look in
+ * @cptr: the index into the cspace radix tree
+ * @cnode: out param, the cnode/slot that contains the capability
  *
- * ** Frees the cnode lock itself without relying on user.
+ * Acquires a lock to the cnode. Returns zero on success.
  *
- * ** Interrupts and preemption *are not* disabled. **
- *    (so we can easily get out of deadlocks while debugging)
- */
-int cap_cnode_verify(struct cspace *cspace, cptr_t cap);
-/**
- * Return the cptr that points to this cnode.
- */
-cptr_t cap_cnode_cptr(struct cnode *cnode);
-
-/**
- * Return the cnode that this cptr points to in the given cspace. Acquires
- * a lock to the cnode. Returns zero on success. Make sure to call
- * cap_cnode_put after every cap_cnode_get.
+ * NOTE: Make sure to call cap_cnode_put after every cap_cnode_get.
+ *
+ * Since the struct cnode def is private, use the accessor functions
+ * below to get the object stored (cap_cnode_object), to get the
+ * cptr that indexes to this cnode (cap_cnode_cptr), and so on.
  */
 int cap_cnode_get(struct cspace *cspace, cptr_t cptr, struct cnode **cnode);
-
 /**
- * Unlock the cnode. Call this on every cnode you've called
- * cap_cnode_get on.
+ * cap_cnode_put -- Unlock the cnode
+ *
+ * Call this on every cnode you've called cap_cnode_get on.
  */
 void cap_cnode_put(struct cnode *cnode);
-
 /**
- * Get the object stored at this cnode.
+ * cap_cnode_object -- Get the object stored at this cnode.
  */
 void* cap_cnode_object(struct cnode *cnode);
+/**
+ * cap_cnode_cptr -- Return the cptr that points to this cnode
+ */
+cptr_t cap_cnode_cptr(struct cnode *cnode);
 /**
  * cap_cnode_metadata -- Get the metadata stored in the cnode
  * @cnode: the cnode to get metadata from
@@ -442,14 +412,21 @@ void* cap_cnode_metadata(struct cnode *cnode);
  */
 void cap_cnode_set_metadata(struct cnode *cnode, void *metadata);
 /**
- * Get the type of this cnode
+ * cap_cnode_type -- Get the type of this cnode
  */
 cap_type_t cap_cnode_type(struct cnode *cnode);
-
 /**
- * Get the cspace this cnode is in.
+ * cap_cnode_cspace -- Get the cspace this cnode is in
  */
 struct cspace * cap_cnode_cspace(struct cnode *cnode);
-
+/**
+ * cap_cnode_verify -- Looks up cnode at cap in cspace.
+ *
+ * ** Frees the cnode lock itself without relying on user.
+ *
+ * ** Interrupts and preemption *are not* disabled. **
+ *    (so we can easily get out of deadlocks while debugging)
+ */
+int cap_cnode_verify(struct cspace *cspace, cptr_t cap);
 
 #endif /* __LIBCAP_H__ */
