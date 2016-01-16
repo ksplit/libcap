@@ -1,9 +1,9 @@
 
 # Include all dirs for distribution/tarball
-DIST_SUBDIRS = include src
+DIST_SUBDIRS = include src test
 
-# Include all dirs. Only include is really needed now for install.
-SUBDIRS = include src
+# Recurse into all for install/dist targets
+SUBDIRS = include src test
 
 # User files. Note that we need to use absolute paths for
 # includes because we're jumping back up the directory tree
@@ -34,3 +34,20 @@ libcap_a_CFLAGS = $(AM_CFLAGS)
 lib_LTLIBRARIES = libcap.la
 libcap_la_SOURCES = $(USER_SRCS)
 libcap_la_LIBADD = $(GLIB_LDFLAGS)
+
+# So this is kind of lame, but in order to set up the
+# dependency between the tests and libcap, I need to put 
+# the crap in here. Boo. (I guess automake always recurs
+# first before it does the current script. Maybe that's
+# sensible.)
+if ENABLE_TEST_BUILD
+
+# Test apps
+noinst_PROGRAMS = cap-stuff multi_thrd_cap
+cap_stuff_SOURCES = test/cap-stuff.c
+multi_thrd_cap_SOURCES = test/multi_thrd_cap.c
+
+# Link with static libcap.a
+LDADD = libcap.a $(GLIB_LDFLAGS)
+
+endif

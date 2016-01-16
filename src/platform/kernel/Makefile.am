@@ -1,9 +1,9 @@
 
 # Include all dirs for distribution/tarball
-DIST_SUBDIRS = include src module
+DIST_SUBDIRS = include src module test
 
-# Include all dirs. Only include is really needed now for install.
-SUBDIRS = include src module
+# Recurse into all for install/dist targets
+SUBDIRS = include src module test
 
 # Kernel files
 KERNEL_INCLUDES = -I$(abs_top_srcdir)/src/platform/kernel/include
@@ -31,6 +31,11 @@ if ENABLE_KERNEL_MODULE
 MAYBE_ALL_MODULE = all-module
 MAYBE_CLEAN_MODULE = clean-module
 MAYBE_MODULES_INSTALL = do-modules-install
+
+endif
+
+# TODO: Add kernel tests
+if ENABLE_TEST_BUILD
 
 endif
 

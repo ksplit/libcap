@@ -285,14 +285,12 @@ AC_CONFIG_FILES(
   src/platform/kernel/module/Kbuild
   src/platform/kernel/Kbuild
   src/platform/kernel/include/Makefile
+  src/platform/kernel/test/Makefile
 
   src/platform/user/Makefile
   src/platform/user/src/Makefile
   src/platform/user/include/Makefile
-
-  test/Makefile
-  test/user/Makefile
-  test/kernel/Makefile
+  src/platform/user/test/Makefile
 )
 AC_OUTPUT
 
