@@ -1217,3 +1217,30 @@ void cap_destroy_cspace(struct cspace *cspace)
  fail1:
 	return;
 }
+
+/* EXPORTS -------------------------------------------------- */
+
+/* These are required for kernel land, so that if we install libcap
+ * as a kernel module, other kernel code can link with it. */
+EXPORT_SYMBOL(cap_init);
+EXPORT_SYMBOL(cap_fini);
+EXPORT_SYMBOL(cap_register_type);
+EXPORT_SYMBOL(cap_alloc_cspace);
+EXPORT_SYMBOL(cap_free_cspace);
+EXPORT_SYMBOL(cap_init_cspace);
+EXPORT_SYMBOL(cap_destroy_cspace);
+EXPORT_SYMBOL(cap_cspace_setowner);
+EXPORT_SYMBOL(cap_cspace_getowner);
+EXPORT_SYMBOL(cap_cnode_get);
+EXPORT_SYMBOL(cap_cnode_put);
+EXPORT_SYMBOL(cap_cnode_object);
+EXPORT_SYMBOL(cap_cnode_type);
+EXPORT_SYMBOL(cap_cnode_cspace);
+EXPORT_SYMBOL(cap_cnode_metadata);
+EXPORT_SYMBOL(cap_cnode_set_metadata);
+EXPORT_SYMBOL(cap_cnode_verify);
+EXPORT_SYMBOL(cap_cnode_cptr);
+EXPORT_SYMBOL(cap_insert);
+EXPORT_SYMBOL(cap_delete);
+EXPORT_SYMBOL(cap_grant);
+EXPORT_SYMBOL(cap_revoke);

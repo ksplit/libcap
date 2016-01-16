@@ -71,7 +71,10 @@ uninstall-headers:
 	rm -f $(KERNEL_HEADERS_INSTALL)/libcap_list.h
 
 # Don't do regular install; user probably doesn't want kernel stuff in
-# user-level directories.
+# user-level directories. (In retrospect, maybe a regular install isn't
+# a bad idea. User can always uninstall if they mess up and choose the
+# wrong prefix. Of course, we have to manually spell out the install
+# rule using $DESTDIR.)
 install: install-headers
 	@echo ""; \
 	echo "----------------------------------------"; \

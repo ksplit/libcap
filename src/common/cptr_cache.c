@@ -31,16 +31,6 @@ cap_cptr_cache_bmap_for_level(struct cptr_cache *c, int lvl)
 #error "You need to adjust this function def."
 #endif
 
-int cptr_init(void)
-{
-	return __cptr_init();
-}
-
-void cptr_fini(void)
-{
-	__cptr_fini();
-}
-
 int cptr_cache_alloc(struct cptr_cache **out)
 {
 	struct cptr_cache *cache;
@@ -93,8 +83,8 @@ void cptr_cache_destroy(struct cptr_cache *cache)
 	/* No-op for now */
 }
 
-int __cap_alloc_cptr_from_bmap(unsigned long *bmap, int size,
-			       unsigned long *out)
+static int __cap_alloc_cptr_from_bmap(unsigned long *bmap, int size,
+				unsigned long *out)
 {
 	unsigned long idx;
 	/*
@@ -200,3 +190,15 @@ void cptr_free(struct cptr_cache *cptr_cache, cptr_t c)
 
 	return;
 }
+
+/* EXPORTS -------------------------------------------------- */
+
+/* These are required for kernel land, so that if we install libcap
+ * as a kernel module, other kernel code can link with it. */
+EXPORT_SYMBOL(cap_cptr_cache_bmap_for_level);
+EXPORT_SYMBOL(cptr_cache_alloc);
+EXPORT_SYMBOL(cptr_cache_free);
+EXPORT_SYMBOL(cptr_cache_init);
+EXPORT_SYMBOL(cptr_cache_destroy);
+EXPORT_SYMBOL(cptr_alloc);
+EXPORT_SYMBOL(cptr_free);

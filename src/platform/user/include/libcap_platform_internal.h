@@ -208,4 +208,7 @@ static unsigned long find_first_zero_bit(const unsigned long *addr,
 
 #define msleep(ms) usleep(10 * (ms))
 
+/* No need to export symbols for user lib. */
+#define EXPORT_SYMBOL(s)
+
 #endif /* __LIBCAP_PLATFORM_INTERNAL_H__ */
