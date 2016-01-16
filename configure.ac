@@ -97,9 +97,15 @@ AS_IF([test "x$PLATFORM" = "xkernel"],
         # Build libcap as kernel module, in addition to static lib.a
         AC_ARG_ENABLE([kernel_module],
             [AS_HELP_STRING([--disable-kernel-module],
-                [Disable kernel module build (default=no)])])
+                [Disable kernel module build (default=no)])],
+            [],
+            [enable_kernel_module="yes"])
         AM_CONDITIONAL(ENABLE_KERNEL_MODULE, 
             [test "x$enable_kernel_module" = "xyes"])
+
+        AM_COND_IF([ENABLE_KERNEL_MODULE],
+            [AC_MSG_NOTICE([Building kernel module.])],
+            [AC_MSG_NOTICE([Not building kernel module.])])
 
     ],
 
@@ -111,10 +117,16 @@ AS_IF([test "x$PLATFORM" = "xkernel"],
     ])
 
 AC_ARG_ENABLE([test_build],
-    [AS_HELP_STRING([--disable-test-build],
-        [Disable building test applications (default=no)])])
+    [AS_HELP_STRING([--enable-test-build],
+        [Enable building test applications (default=no)])],
+    [],
+    [enable_test_build="no"])
 AM_CONDITIONAL(ENABLE_TEST_BUILD, 
     [test "x$enable_test_build" = "xyes"])
+AM_COND_IF([ENABLE_TEST_BUILD],
+    [AC_MSG_NOTICE([Building tests.])],
+    [AC_MSG_NOTICE([Not building tests.])])
+
 
 # --------------------------------------------------
 # Checks for programs.
@@ -269,8 +281,9 @@ AC_CONFIG_FILES(
   src/platform/Makefile
   src/platform/kernel/Makefile
   src/platform/kernel/src/Makefile
-  src/platform/kernel/module/Kbuild:src/platform/kernel/module/Kbuild.in
-  src/platform/Kbuild:src/platform/kernel/Kbuild.in
+  src/platform/kernel/module/Makefile
+  src/platform/kernel/module/Kbuild
+  src/platform/kernel/Kbuild
   src/platform/kernel/include/Makefile
 
   src/platform/user/Makefile

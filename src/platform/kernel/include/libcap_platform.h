@@ -19,7 +19,7 @@
 #define __cap_msg(format,...) \
     printk(KERN_NOTICE "cap: %s:%d: "format,__FUNCTION__,__LINE__,##__VA_ARGS__)
 #define __cap_debug(format,...) \
-    printk(KERN_DEBUG,"cap: %s:%d: "format,__FUNCTION__,__LINE__,##__VA_ARGS__)
+    printk(KERN_DEBUG "cap: %s:%d: "format,__FUNCTION__,__LINE__,##__VA_ARGS__)
 
 #define __cap_bug() BUG()
 

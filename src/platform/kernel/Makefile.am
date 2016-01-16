@@ -16,36 +16,79 @@ AM_CPPFLAGS = \
 	$(GLIB_INCLUDES)
 
 COMMON_SRCS = \
-	../common/cap.c \
-	../common/cptr_cache.c
+	../../common/cap.c \
+	../../common/cptr_cache.c
 
 export AM_CPPFLAGS COMMON_SRCS
 
 LIBCAP_KBUILD=$(PWD)
-LIBCAP_KERNEL_MODULE_KBUILD=$(PWD)/platform/kernel/module
+LIBCAP_KERNEL_MODULE_KBUILD=$(PWD)/module
 
 # Automake if's aren't as powerful as GNU Make's (partly since Automake
 # doesn't know the config selections when it does its job)
-all_cmd = $(MAKE) -C $(KDIR) M=$(LIBCAP_KBUILD) \
-	CPPFLAGS="$(AM_CPPFLAGS) $(CPPFLAGS)" modules
-install_cmd = $(MAKE) -C $(KDIR) M=$(LIBCAP_KBUILD) modules_install
-clean_cmd = $(MAKE) -C $(KDIR) M=$(LIBCAP_KBUILD) clean
-
 if ENABLE_KERNEL_MODULE
 
-all_cmd += ; $(MAKE) -C $(KDIR) M=$(LIBCAP_KERNEL_MODULE_KBUILD) \
-	CPPFLAGS="$(AM_CPPFLAGS) $(CPPFLAGS)" modules
-install_cmd += ; $(MAKE) -C $(KDIR) M=$(LIBCAP_KERNEL_MODULE_KBUILD) \
-	modules_install
-clean_cmd += ; $(MAKE) -C $(KDIR) M=$(LIBCAP_KERNEL_MODULE_KBUILD) clean
+MAYBE_ALL_MODULE = all-module
+MAYBE_CLEAN_MODULE = clean-module
+MAYBE_MODULES_INSTALL = do-modules-install
 
 endif
 
-all:
-	$(all_cmd)
+# Sequence the build, so we build the lib first
+all: all-lib-cp $(MAYBE_ALL_MODULE)
 
-install:
-	$(install_cmd)
+all-module: all-lib-cp
+	$(MAKE) -C $(KDIR) M=$(LIBCAP_KERNEL_MODULE_KBUILD) modules
 
-clean:
-	$(clean_cmd)
+all-lib-cp: all-lib
+	cp lib.a libcap.a
+
+all-lib:
+	$(MAKE) -C $(KDIR) M=$(LIBCAP_KBUILD)
+
+# Don't do regular install; user probably doesn't want kernel stuff in
+# user-level directories.
+install-exec-hook:
+	@echo "----------------------------------------"; \
+	echo "             NOTE"; \
+	echo ""; \
+	echo "Skipping copy of libcap.a and libcap.ko."; \
+	echo "You can find them in (libcap build dir)/src/platform/kernel."; \
+	echo "To install the kernel module, do 'make modules_install'"; \
+	echo "in the root of the libcap build tree."; \
+	echo ""; \
+	echo "----------------------------------------"
+
+uninstall-hook:
+	@echo "----------------------------------------"; \
+	echo "             NOTE"; \
+	echo ""; \
+	echo "Skipping uninstall of libcap.a and libcap.ko."; \
+	echo "If you installed the libcap.ko kernel module via"; \
+	echo "modules_install (in the root of the libcap build tree)"; \
+	echo "then there really isn't an easy way (that I know of) to"; \
+	echo "remove the kernel module. It was installed somewhere in"; \
+	echo '  /lib/modules/`uname -r`/build'; \
+	echo "(or something similar)."; \
+	echo "You will have to manually remove it."; \
+	echo ""; \
+	echo "----------------------------------------"
+
+
+do-modules-install:
+	$(MAKE) -C $(KDIR) M=$(LIBCAP_KERNEL_MODULE_KBUILD) \
+		modules_install
+
+modules_install: $(MAYBE_MODULES_INSTALL)
+
+clean: clean-lib $(MAYBE_CLEAN_MODULE)
+
+clean-module:
+	$(MAKE) -C $(KDIR) M=$(LIBCAP_KERNEL_MODULE_KBUILD) clean
+
+clean-lib:
+	$(MAKE) -C $(KDIR) M=$(LIBCAP_KBUILD) clean
+	rm -f libcap.a
+
+.PHONY: all-module all-lib all-lib-cp do-modules-install modules_install \
+	clean-module clean-lib

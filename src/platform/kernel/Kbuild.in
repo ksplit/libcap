@@ -1,8 +1,18 @@
+# Build libcap as static library. Unfortunately, the name of the
+# library is hard-coded in the kernel build system to be lib.a. (We
+# have an extra build step that cp's lib.a -> libcap.a.)
 
-# Kernel source files
-# (none for static lib)
+# Note: Kernel expects the files to be relative paths (it always prepends
+# the current directory).
 
-# Build libcap as static library
-lib-y += libcap.a
-libcap-objs += \
+# This single line of magic makes it so we can do an out of src tree
+# build. It has to do with how and where this Kbuild file is included
+# in the kernel build system.
+src = @abs_top_srcdir@/src/platform/kernel
+
+# Sources that make up library
+lib-y += \
 	$(COMMON_SRCS:.c=.o)
+
+# Pass along include directories from the Automake file
+ccflags-y += $(AM_CPPFLAGS)

@@ -17,7 +17,7 @@ static int __init cap_init_module(void)
 
 static void __exit cap_fini_module(void)
 {
-	cap_exit();
+	cap_fini();
 	return;
 }
 

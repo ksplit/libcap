@@ -31,9 +31,9 @@ extern int cap_debug_level;
 #define CAP_DEBUG_WARN 2
 #define CAP_DEBUG_MSG  3
 
-#define CAP_DEBUG(lvl, msg, ...) do {					\
+#define CAP_DEBUG(lvl,msg,...) do {					\
 		if (lvl <= cap_debug_level)				\
-			__cap_debug(msg,## __VA_ARGS__);		\
+			__cap_debug(msg,##__VA_ARGS__);			\
 	} while(0)
 
 #define CAP_BUG() do { __cap_bug(); } while(0)
