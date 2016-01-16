@@ -30,20 +30,40 @@ static unsigned long long cspace_id = 0;
 
 int cap_init(void)
 {
+	int ret;
+	/*
+	 * Initialize cptr cache subsystem
+	 */
+	ret = __cptr_init();
+	if (ret) {
+		CAP_ERR("failed to initialize cptr cache subsystem");
+		goto fail1;
+	}
 	/*
 	 * Initialize cdt cache
 	 */
 	cdt_cache.cdt_root_cache = cap_cache_create(cdt_root_node);
 	if (!cdt_cache.cdt_root_cache) {
 		CAP_ERR("failed to initialize cdt_root_node allocator");
-		return -ENOMEM;
-		return -1;
+		ret = -ENOMEM;
+		goto fail2;
 	}
+	/*
+	 * Initialize locks
+	 */
 	cap_mutex_init(&cdt_cache.lock);
 	cap_mutex_init(&global_lock);
+	/*
+	 * Zero out types
+	 */
 	memset(cap_types, 0, sizeof(cap_types));
-
+	
 	return 0;
+
+fail2:
+	__cptr_fini();
+fail1:
+	return ret;
 }
 
 void cap_fini(void)
@@ -59,6 +79,10 @@ void cap_fini(void)
 	for (i = CAP_TYPE_FIRST_NONBUILTIN; i < CAP_TYPE_MAX; ++i)
 		if (cap_types[i].name)
 			free(cap_types[i].name);
+	/*
+	 * Tear down cptr cache subsystem
+	 */
+	__cptr_fini();
 }
 
 cap_type_t cap_register_type(cap_type_t type, const struct cap_type_ops *ops)
