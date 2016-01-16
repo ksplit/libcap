@@ -269,11 +269,6 @@ AC_CHECK_FUNCS([memset strdup])
 # Config files
 # --------------------------------------------------
 
-AC_CONFIG_COMMANDS([privconfigh],
-       [egrep 'define (PACKAGE|VERSION)' include/libcap_config.h > include/libcap_config_internal.h
-        egrep -v 'define (PACKAGE|VERSION)' include/libcap_config.h > include/libcap_config.h.tmp
-        mv include/libcap_config.h.tmp include/libcap_config.h],[])
-
 AC_CONFIG_FILES(
   Makefile
 
