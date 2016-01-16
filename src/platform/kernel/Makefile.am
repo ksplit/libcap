@@ -51,20 +51,43 @@ all-lib-cp: all-lib
 all-lib:
 	$(MAKE) -C $(KDIR) M=$(LIBCAP_KBUILD)
 
+install-headers:
+	@echo "Installing libcap kernel headers to $(KERNEL_HEADERS_INSTALL)..."
+	mkdir -p $(KERNEL_HEADERS_INSTALL)
+	cp $(top_srcdir)/src/platform/kernel/include/libcap_platform.h $(KERNEL_HEADERS_INSTALL)
+	cp $(top_srcdir)/src/platform/kernel/include/libcap_platform_types.h $(KERNEL_HEADERS_INSTALL)
+	cp $(top_srcdir)/src/include/libcap.h $(KERNEL_HEADERS_INSTALL)
+	cp $(top_builddir)/src/include/libcap_config.h $(KERNEL_HEADERS_INSTALL)
+	cp $(top_srcdir)/src/include/libcap_types.h $(KERNEL_HEADERS_INSTALL)
+	cp $(top_srcdir)/src/include/libcap_list.h $(KERNEL_HEADERS_INSTALL)
+
+uninstall-headers:
+	@echo "Uninstalling libcap kernel headers from $(KERNEL_HEADERS_INSTALL)..."
+	rm -f $(KERNEL_HEADERS_INSTALL)/libcap_platform.h
+	rm -f $(KERNEL_HEADERS_INSTALL)/libcap_platform_types.h
+	rm -f $(KERNEL_HEADERS_INSTALL)/libcap.h
+	rm -f $(KERNEL_HEADERS_INSTALL)/libcap_config.h
+	rm -f $(KERNEL_HEADERS_INSTALL)/libcap_types.h
+	rm -f $(KERNEL_HEADERS_INSTALL)/libcap_list.h
+
 # Don't do regular install; user probably doesn't want kernel stuff in
 # user-level directories.
-install-exec-hook:
-	@echo "----------------------------------------"; \
+install: install-headers
+	@echo ""; \
+	echo "----------------------------------------"; \
 	echo "             NOTE"; \
 	echo ""; \
-	echo "Skipping copy of libcap.a and libcap.ko."; \
-	echo "You can find them in (libcap build dir)/src/platform/kernel."; \
+	echo "We only install the kernel headers (according to the"; \
+	echo "KERNEL_HEADERS_INSTALL variable). You probably don't want"; \
+	echo "e.g. kernel headers mixed up in your user include directories"; \
+	echo "and stuff. You can find libcap.a and libcap.ko in"; \
+	echo "(libcap build dir)/src/platform/kernel."; \
 	echo "To install the kernel module, do 'make modules_install'"; \
 	echo "in the root of the libcap build tree."; \
 	echo ""; \
 	echo "----------------------------------------"
 
-uninstall-hook:
+uninstall: uninstall-headers
 	@echo "----------------------------------------"; \
 	echo "             NOTE"; \
 	echo ""; \
@@ -96,4 +119,4 @@ clean-lib:
 	rm -f libcap.a
 
 .PHONY: all-module all-lib all-lib-cp do-modules-install modules_install \
-	clean-module clean-lib
+	clean-module clean-lib install-headers uninstall-headers

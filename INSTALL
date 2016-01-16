@@ -41,28 +41,80 @@ lint in your source tree.
   $ mkdir libcap.obj
   $ cd libcap.obj
 
-Third, configure the build.  You can run `../libcap/configure --help` to
-see a list of configure options.  --prefix is the installation prefix;
-you may want to set it to something out-of-the-way like /opt/libcap, or
-you might not.  You can skip the kernel module build by supplying
---disable-kernel .  If your glib is installed in a non-standard place,
-you can tell configure by passing the appropriate directory to the
---with-glib option.
+Third, configure the build. Important options:
 
-  $ ../libcap/configure --prefix=/opt/libcap
+    PLATFORM={kernel|user}   -- platform to build for
 
-Fourth, make and make install!
+    CSPACE_DEPTH_BITS        -- number between 0 and 8. Controls the
+                                depth of the CSpace radix tree. (The
+                                depth will be 2^CSPACE_DEPTH_BITS.)
 
-  $ make && make install
+    CSPACE_CNODE_TABLE_BITS  -- number between 0 and 9. Controls the size
+                                of the nodes (number of slots) in the
+                                CSpace radix tree. (The total slots per
+                                cnode table/node will be
+                                2^CSPACE_CNODE_TABLE_BITS.)
 
-This will build the libcap library, kernel module, and test programs;
-and install the libcap headers and library.  If you want to run the test
-programs, you'd do something like
+    --with-kernel-headers    -- if you selected PLATFORM=kernel, you can
+                                set the directory that contains the kernel
+                                headers to use for the build; the default
+                                is lib/modules/`uname -r`/build.
 
-  $ test/user/multi_thrd_cap
+    --enable-test-build      -- build all of the tests for the platform;
+                                default is no (does not build tests)
+
+    --enable-kernel-module   -- if you selected PLATFORM=kernel, you can
+                                build libcap as a kernel module (default no).
+                                You will be able to install libcap.ko and
+                                use it with other kernel modules (rather than
+                                statically linking libcap.a into those
+                                modules at compile time)
+
+ KERNEL_HEADERS_INSTALL=dir  -- if you selected PLATFORM=kernel, this is
+                                where the libcap headers will be installed;
+                                the default is (libcap build dir)/include.
+                                If the directory does not exist, it will be
+                                created. Note that the uninstall will not 
+                                remove the directory, just the headers.
+
+    --prefix                 -- the installation prefix; you may want to set 
+                                it to something out-of-the-way like 
+                                /opt/libcap, or you might not. E.g.,
+
+                                   $ ../libcap/configure --prefix=/opt/libcap
+
+    --with-glib              -- if you selected PLATFORM=user, you can
+                                set the root of your glib 2.0 install if
+                                it is installed in a non-standard place; the
+                                default is /usr
+
+You can run `../libcap/configure --help` to see a list of all configure 
+options.
+
+Fourth, make!
+
+  $ make
+
+Depending on your settings, this will build libcap as a library for 
+user or kernel land, the libcap kernel module, and test programs.
+
+Fifth, make install!
+
+  $ make install
+
+For user-level, this will install libcap and its headers into the prefix
+you specified. For kernel-level, this will do nothing (you probably don't
+want kernel headers getting mixed up in your user stuff). If you want to
+install libcap.ko, the kernel module, do:
+
+  $ make modules_install
+
+Note: You probably won't be able to link a user-level build of libcap with a 
+kernel module, or the kernel-level build of libcap with a user app; the 
+compilation and linking process differs too much.
+
+If you want to run the test programs, you'd do something like
+
+  $ src/platform/user/test/multi_thrd_cap
 
 and watch the fun.
-
-Finally, if you want to install the kernel module, do that like this:
-
-  $ make -C src/kernel modules_install

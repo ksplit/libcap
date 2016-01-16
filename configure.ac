@@ -116,6 +116,23 @@ AS_IF([test "x$PLATFORM" = "xkernel"],
 
     ])
 
+# libcap headers install for kernel land (user probably doesn't want
+# them going in the user-level include dirs)
+AS_IF([test "x$PLATFORM" = "xkernel"],
+
+    [
+        AC_ARG_VAR([KERNEL_HEADERS_INSTALL],
+            [Where to install the libcap headers for kernel builds (default is (libcap build dir)/include)])
+        AS_IF([test "x$KERNEL_HEADERS_INSTALL" = "x"],
+            [KERNEL_HEADERS_INSTALL=../../../include]) # default
+        AS_IF([test -e $KERNEL_HEADERS_INSTALL && test ! -d $KERNEL_HEADERS_INSTALL],
+            [AC_MSG_ERROR([libcap kernel headers install location ($KERNEL_HEADERS_INSTALL) exists and is not a directory. Please choose a different location.])])
+        AC_SUBST(KERNEL_HEADERS_INSTALL)
+        AC_MSG_NOTICE([libcap kernel headers install dir = $KERNEL_HEADERS_INSTALL])
+
+    ])
+
+# Build tests?
 AC_ARG_ENABLE([test_build],
     [AS_HELP_STRING([--enable-test-build],
         [Enable building test applications (default=no)])],
