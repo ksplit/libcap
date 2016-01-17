@@ -100,8 +100,11 @@ AS_IF([test "x$enable_global_cap_types" = "xyes"],
     [
         AC_DEFINE([CAP_ENABLE_GLOBAL_TYPES], 1,
             [Allow cspaces to use one global type system.])
-        CAP_INCLUDE_GLOBAL_TYPES=$srcdir/src/include/global_cap_types.h
-        AC_SUBST_FILE([CAP_INCLUDE_GLOBAL_TYPES])
+        # Using cat instead of AC_SUBST_FILE. (If you AC_SUBST_FILE a
+        # variable in one case and AC_SUBST it in another, autoconf
+        # gets confused.)
+        CAP_INCLUDE_GLOBAL_TYPES=`cat $srcdir/src/include/global_cap_types.h`
+        AC_SUBST([CAP_INCLUDE_GLOBAL_TYPES])
         AC_MSG_NOTICE([Allowing global capability type system.])
     ],
     [
@@ -109,6 +112,8 @@ AS_IF([test "x$enable_global_cap_types" = "xyes"],
         AC_SUBST([CAP_INCLUDE_GLOBAL_TYPES])
         AC_MSG_NOTICE([Disallowing global capability type system.])
     ])
+
+AM_SUBST_NOTMAKE(CAP_INCLUDE_GLOBAL_TYPES)
 
 # Kernel module build?
 AS_IF([test "x$PLATFORM" = "xkernel"],
@@ -340,6 +345,7 @@ AC_CONFIG_FILES(
   src/common/Makefile
 
   src/include/Makefile
+  src/include/libcap_config.h
   src/include/libcap_types.h
   src/include/libcap.h
 

@@ -25,6 +25,17 @@ struct cdt_root_node;
 struct cspace;
 struct cnode_table;
 
+struct cap_type_system {
+	/*
+	 * Lock
+	 */
+	cap_mutex_t lock;
+	/*
+	 * Array of types in this type system
+	 */
+	struct cap_type_ops types[CAP_TYPE_MAX];
+};
+
 enum allocation_state {
 	ALLOCATION_INVALID,
 	ALLOCATION_VALID,

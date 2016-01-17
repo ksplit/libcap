@@ -77,7 +77,7 @@ struct cap_type_ops {
 	int (*revoke)(struct cspace *cspace, struct cnode *cnode, void *object);
 };
 
-/* MISC -------------------------------------------------- */
+/* CAP TYPE SYSTEMS -------------------------------------------------- */
 
 /**
  * Maximum number of types allowed per type system
@@ -85,5 +85,7 @@ struct cap_type_ops {
 #ifndef CAP_TYPE_MAX
 #define CAP_TYPE_MAX 256
 #endif
+
+struct cap_type_system;
 
 #endif /* __LIBCAP_TYPES_H__ */

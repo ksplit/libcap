@@ -212,6 +212,56 @@ cap_cptr_cache_bmap_for_level(struct cptr_cache *c, int lvl)
 @CAP_CPTR_CACHE_BMAP_FOR_LEVEL@
 }
 
+/* TYPE SYSTEMS -------------------------------------------------- */
+
+/**
+ * cap_type_system_alloc -- Alloc memory for a type system
+ * @ts: out param, alloc'd type system stored in pointer
+ *
+ * Just like cspaces and cptr caches, the lifetime is:
+ *
+ *     cap_type_system_alloc    - alloc mem
+ *     cap_type_system_init     - init type system
+ *     cap_type_system_destroy  - tear down type system
+ *     cap_type_system_free     - free mem
+ */
+int cap_type_system_alloc(struct cap_type_system **ts);
+/**
+ * cap_type_system_init -- Initialize type system - locks, etc.
+ * @ts: the type system to initialize
+ */
+int cap_type_system_init(struct cap_type_system *ts);
+/**
+ * cap_type_system_destroy -- Tear down type system
+ * @ts: the type system to destroy
+ *
+ * Does not free type system.
+ */
+void cap_type_system_destroy(struct cap_type_system *ts);
+/**
+ * cap_type_system_free -- Free type system alloc'd via cap_type_system_alloc
+ * @ts: the type system to free
+ */
+void cap_type_system_free(struct cap_type_system *ts);
+/**
+ * cap_register_private_type -- Register a new capability object type in 
+ *                              type system
+ * @ts: the type system to add the new type to
+ * @type: integer type index / identifier
+ * @ops: the cap_type_ops to associate with this type
+ *
+ * If you pass type == 0, the system will select the next available 
+ * identifier and return it.  You should use the returned value as your 
+ * object identifier.  If you attempt to use a type that is already in use, 
+ * this returns -EADDRINUSE. If there are no types remaining or you exceed
+ * CAP_TYPE_MAX, this returns -ENOMEM.
+ *
+ * Every type system comes with the built-in types that are in 
+ * libcap_platform.h, in the definition of cap_type_t.
+ */
+cap_type_t cap_register_private_type(struct cap_type_system *ts, 
+			cap_type_t type, const struct cap_type_ops *ops);
+
 /* CSPACES -------------------------------------------------- */
 
 /**
@@ -276,7 +326,7 @@ struct cspace * cap_alloc_cspace(void);
  * drops reference on @ts.
  */
 int cap_init_cspace_with_type_system(struct cspace *cspace,
-				struct cap_type_system_t *ts);
+				struct cap_type_system *ts);
 /**
  * cap_destroy_cspace -- Equivalent to calling lcd_cap_delete on all cnodes 
  *                       in cspace. Frees up all cnode tables, etc.
@@ -315,25 +365,7 @@ void* cap_cspace_getowner(struct cspace *cspace);
  * If you plan to use the type system after all other references go away,
  * you should bump its reference count (via cap_type_system_get).
  */
-cap_type_system_t* cap_cspace_get_type_system(struct cspace *cspace);
-/**
- * cap_register_private_type -- Register a new capability object type in 
- *                              type system
- * @ts: the type system to add the new type to
- * @type: integer type index / identifier
- * @ops: the cap_type_ops to associate with this type
- *
- * If you pass type == 0, the system will select the next available 
- * identifier and return it.  You should use the returned value as your 
- * object identifier.  If you attempt to use a type that is already in use, 
- * this returns -EADDRINUSE. If there are no types remaining or you exceed
- * CAP_TYPE_MAX, this returns -ENOMEM.
- *
- * Every type system comes with the built-in types that are in 
- * libcap_platform.h, in the definition of cap_type_t.
- */
-cap_type_t cap_register_private_type(cap_type_system_t *ts, 
-			cap_type_t type, const struct cap_type_ops *ops);
+struct cap_type_system* cap_cspace_get_type_system(struct cspace *cspace);
 /**
  * cap_insert -- Inserts object data into cspace at cnode pointed at by c
  * @cspace: the cspace to insert the object into
