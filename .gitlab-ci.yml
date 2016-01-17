@@ -3,7 +3,7 @@ testing:
   - ./autogen.sh
   - mkdir build install
   - cd build
-  - ../configure --prefix=`readlink -f ../install`
+  - ../configure --prefix=`readlink -f ../install` --enable-test-build
   - make
   - make install
   only:
