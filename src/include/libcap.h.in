@@ -1,4 +1,6 @@
 /*
+ * @CAP_AUTOCONF_NOTICE@
+ *
  * libcap.h
  *
  * Main include for libcap library. This is the only file
@@ -194,7 +196,21 @@ int cptr_alloc(struct cptr_cache *cptr_cache, cptr_t *free_cptr);
  * Fails silently if the cptr is free already.
  */
 void cptr_free(struct cptr_cache *cptr_cache, cptr_t c);
-
+/**
+ * cap_cptr_cache_bmap_for_level -- Return pointer to the bitmap for lvl
+ * @c: the cptr cache
+ * @lvl: zero-indexed lvl value
+ *
+ * The body of this function is generated via an awk script (the CPP
+ * is too limited). Note that lvl may be a compile-time constant, but
+ * the CPP doesn't know that (so we can't use easy macro tricks, that I'm
+ * aware of).
+ */
+static inline unsigned long* 
+cap_cptr_cache_bmap_for_level(struct cptr_cache *c, int lvl)
+{
+@CAP_CPTR_CACHE_BMAP_FOR_LEVEL@
+}
 
 /* CSPACES -------------------------------------------------- */
 
@@ -217,6 +233,10 @@ void cap_fini(void);
  *
  * Returns the total number of *capability* slots in all of the
  * cnode tables at a given @lvl of the cspace radix tree.
+ *
+ * TODO: If we want to make things faster, we could replace the body
+ * of this with a switch statement and compute the values at compile time
+ * with some awk/autoconf magic.
  */
 static inline int cap_cspace_slots_in_level(int lvl)
 {

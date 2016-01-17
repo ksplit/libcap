@@ -9,28 +9,6 @@
 #include <libcap.h>
 #include <libcap_internal.h>
 
-#if (CAP_CSPACE_DEPTH == 4)
-static inline unsigned long* 
-cap_cptr_cache_bmap_for_level(struct cptr_cache *c, int lvl)
-{
-	switch (lvl) {
-	case 0:
-		return c->bmap0;
-	case 1:
-		return c->bmap1;
-	case 2:
-		return c->bmap2;
-	case 3:
-		return c->bmap3;
-	default:
-		CAP_BUG();
-	}
-}
-
-#else
-#error "You need to adjust this function def."
-#endif
-
 int cptr_cache_alloc(struct cptr_cache **out)
 {
 	struct cptr_cache *cache;

@@ -1,3 +1,6 @@
+
+# @CAP_AUTOCONF_NOTICE@
+
 # Build kernel module that includes libcap.a.
 
 # Note: Kernel expects the files to be relative paths (it always prepends

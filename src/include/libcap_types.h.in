@@ -1,9 +1,9 @@
 /* 
- * types.h
+ * @CAP_AUTOCONF_NOTICE@
  *
- * Author: Charles Jacobsen <charlesj@cs.utah.edu>
+ * libcap_types.h
+ *
  * Copyright: University of Utah
- *
  */
 #ifndef __LIBCAP_TYPES_H__
 #define __LIBCAP_TYPES_H__
@@ -16,28 +16,6 @@
 /* Stolen from the Linux kernel */
 #define CAP_DIV_ROUND_UP(n,d) (((n) + (d) - 1) / (d))
 #define CAP_BITS_TO_LONGS(nr) CAP_DIV_ROUND_UP(nr, 8 * sizeof(long))
-
-/* CONVENIENCE CALCULATIONS ---------------------------------------- */
-
-/* 
- * To avoid serious CPP hacking, this is hard-coded for cspace depths. This
- * is still pretty fugly anyway.
- *
- * lvl must be a compile-time constant.
- *
- * IMPORTANT: lvl should be zero-indexed (the first level is lvl = 0, ...).
- * If you use a bad value, the error may not show up till link time.
- */
-#if (CAP_CSPACE_DEPTH == 4)
-#define CAP_EXP_0(a) (a)
-#define CAP_EXP_1(a) ((a) * CAP_EXP_0(a))
-#define CAP_EXP_2(a) ((a) * CAP_EXP_1(a))
-#define CAP_EXP_3(a) ((a) * CAP_EXP_2(a))
-#define CAP_CSPACE_SLOTS_IN_LEVEL(lvl) \
-	CAP_EXP_ ## lvl(CAP_CSPACE_CNODE_TABLE_SIZE/2)
-#else
-#error "cspace depth not 4, you need to update this"
-#endif
 
 /* CPTRs -------------------------------------------------- */
 
@@ -67,25 +45,19 @@ typedef struct {
  * LCDs because the cptr cache needs to be available before the
  * memory allocators are up and running.
  */
-
-#if (CAP_CSPACE_DEPTH == 4)
-
 struct cptr_cache {
-	/* lock */
+	/*
+	 * lock
+	 */
 	cap_mutex_t lock;
-	/* level 0 bitmap */
-	unsigned long bmap0[CAP_BITS_TO_LONGS(CAP_CSPACE_SLOTS_IN_LEVEL(0))];
-	/* level 1 bitmap */
-	unsigned long bmap1[CAP_BITS_TO_LONGS(CAP_CSPACE_SLOTS_IN_LEVEL(1))];
-	/* level 2 bitmap */
-	unsigned long bmap2[CAP_BITS_TO_LONGS(CAP_CSPACE_SLOTS_IN_LEVEL(2))];
-	/* level 3 bitmap */
-	unsigned long bmap3[CAP_BITS_TO_LONGS(CAP_CSPACE_SLOTS_IN_LEVEL(3))];
+	/* 
+	 * bmaps
+	 *
+	 * (This part of the def is computed via an awk script; the
+	 * CPP is limited and this would require serious CPP hacking to do.)
+	 */
+	@CAP_CPTR_CACHE_BMAP_DEFS@
 };
-
-#else
-#error "You need to adjust the cptr cache def."
-#endif
 
 /* CSPACES -------------------------------------------------- */
 

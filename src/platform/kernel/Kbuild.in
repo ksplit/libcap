@@ -1,3 +1,6 @@
+
+# @CAP_AUTOCONF_NOTICE@
+
 # Build libcap as static library. Unfortunately, the name of the
 # library is hard-coded in the kernel build system to be lib.a. (We
 # have an extra build step that cp's lib.a -> libcap.a.)
