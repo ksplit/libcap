@@ -1,10 +1,6 @@
 /**
- * cap.c - capability subsystem
+ * cap.c - cspaces, cdt's, and operations
  *
- * Authors:
- *     Muktesh Khole <mukteshkhole86@gmail.com>
- *     Anton Burtsev <aburtsev@flux.utah.edu>
- *     Charles Jacobsen <charlesj@cs.utah.edu>
  * Copyright: University of Utah
  */
 #include <libcap.h>

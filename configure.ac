@@ -90,6 +90,26 @@ AS_CASE([$CSPACE_CNODE_TABLE_BITS],
 AC_MSG_NOTICE([CNode table bits = $CAP_CSPACE_CNODE_TABLE_BITS.])
 AC_SUBST(CAP_CSPACE_CNODE_TABLE_BITS)
 
+# Allow global capability types?
+AC_ARG_ENABLE([global_cap_types],
+    [AS_HELP_STRING([--enable-global-cap-types],
+        [(for backward compatability) Allow cspaces to share one global capability type system (default=yes)])],
+    [],
+    [enable_global_cap_types="yes"])
+AS_IF([test "x$enable_global_cap_types" = "xyes"],
+    [
+        AC_DEFINE([CAP_ENABLE_GLOBAL_TYPES], 1,
+            [Allow cspaces to use one global type system.])
+        CAP_INCLUDE_GLOBAL_TYPES=$srcdir/src/include/global_cap_types.h
+        AC_SUBST_FILE([CAP_INCLUDE_GLOBAL_TYPES])
+        AC_MSG_NOTICE([Allowing global capability type system.])
+    ],
+    [
+        CAP_INCLUDE_GLOBAL_TYPES=
+        AC_SUBST([CAP_INCLUDE_GLOBAL_TYPES])
+        AC_MSG_NOTICE([Disallowing global capability type system.])
+    ])
+
 # Kernel module build?
 AS_IF([test "x$PLATFORM" = "xkernel"],
 
@@ -320,7 +340,6 @@ AC_CONFIG_FILES(
   src/common/Makefile
 
   src/include/Makefile
-  src/include/libcap_config.h
   src/include/libcap_types.h
   src/include/libcap.h
 

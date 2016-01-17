@@ -265,14 +265,25 @@ static inline int cap_cspace_slots_in_level(int lvl)
  */
 struct cspace * cap_alloc_cspace(void);
 /**
- * cap_init_cspace -- Sets up cspace - initializes lock, root cnode table, etc.
+ * cap_init_cspace_with_type_system -- Set up cspace fields
  * @cspace: the cspace to initialize
+ * @ts: the type system to attach
+ *
+ * Sets up cspace - initializes lock, root cnode table, etc. Attaches
+ * type system @ts to it.
+ *
+ * Bumps the reference count on @ts. When @cspace is destroyed,
+ * drops reference on @ts.
  */
-int cap_init_cspace(struct cspace *cspace);
+int cap_init_cspace_with_type_system(struct cspace *cspace,
+				struct cap_type_system_t *ts);
 /**
- * cap_destroy_cspace -- 
- * Equivalent to calling lcd_cap_delete on all cnodes in cspace. Frees up
- * all cnode tables, etc.
+ * cap_destroy_cspace -- Equivalent to calling lcd_cap_delete on all cnodes 
+ *                       in cspace. Frees up all cnode tables, etc.
+ *
+ * Drops reference count on the type system that was attached to
+ * the cspace when it was created. If the type system reference
+ * count reaches zero, it will be freed.
  */
 void cap_destroy_cspace(struct cspace *cspace);
 /**
@@ -294,7 +305,21 @@ void cap_cspace_setowner(struct cspace *cspace, void * owner);
  */
 void* cap_cspace_getowner(struct cspace *cspace);
 /**
- * cap_register_type -- Register a new capability object type
+ * cap_cspace_get_type_system -- Returns a pointer to the type system
+ *                               that was attached to the cspace when it
+ *                               was created (which may be the global
+ *                               type system)
+ * @cspace: the cspace
+ *
+ * This function will not bump the reference count on the type system.
+ * If you plan to use the type system after all other references go away,
+ * you should bump its reference count (via cap_type_system_get).
+ */
+cap_type_system_t* cap_cspace_get_type_system(struct cspace *cspace);
+/**
+ * cap_register_private_type -- Register a new capability object type in 
+ *                              type system
+ * @ts: the type system to add the new type to
  * @type: integer type index / identifier
  * @ops: the cap_type_ops to associate with this type
  *
@@ -304,10 +329,11 @@ void* cap_cspace_getowner(struct cspace *cspace);
  * this returns -EADDRINUSE. If there are no types remaining or you exceed
  * CAP_TYPE_MAX, this returns -ENOMEM.
  *
- * The built-in types are in libcap_platform.h in the definition of
- * cap_type_t.
+ * Every type system comes with the built-in types that are in 
+ * libcap_platform.h, in the definition of cap_type_t.
  */
-cap_type_t cap_register_type(cap_type_t type, const struct cap_type_ops *ops);
+cap_type_t cap_register_private_type(cap_type_system_t *ts, 
+			cap_type_t type, const struct cap_type_ops *ops);
 /**
  * cap_insert -- Inserts object data into cspace at cnode pointed at by c
  * @cspace: the cspace to insert the object into
@@ -448,5 +474,7 @@ struct cspace * cap_cnode_cspace(struct cnode *cnode);
  *    (so we can easily get out of deadlocks while debugging)
  */
 int cap_cnode_verify(struct cspace *cspace, cptr_t cap);
+
+@CAP_INCLUDE_GLOBAL_TYPES@
 
 #endif /* __LIBCAP_H__ */
