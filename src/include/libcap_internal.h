@@ -27,7 +27,13 @@ struct cnode_table;
 
 struct cap_type_system {
 	/*
-	 * Lock
+	 * Lock.
+	 *
+	 * This lock is only used for additive updates to
+	 * the cap type system (adding types). The internal
+	 * code assumes for now that types are not removed,
+	 * and that the libcap user destroys/frees up the type system
+	 * after all cspaces that use it are gone.
 	 */
 	cap_mutex_t lock;
 	/*
@@ -70,6 +76,7 @@ struct cnode_table {
 struct cspace {
 	void *owner;
 	cap_mutex_t lock;
+	struct cap_type_system *ts;
 	enum allocation_state state;
 	struct cnode_table *cnode_table;
 	cap_cache_t *cnode_table_cache;

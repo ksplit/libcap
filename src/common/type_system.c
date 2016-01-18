@@ -30,8 +30,9 @@ int cap_type_system_init(struct cap_type_system *ts)
 	 * Zero out types
 	 *
 	 * (This may seem redundant with cap_zalloc in alloc,
-	 * but in the future, we may allow e.g. statically declared
-	 * type systems.)
+	 * but in some cases - like the global_ts in cap.c - we
+	 * statically allocate type systems. In some primitive
+	 * environments, like LCDs, these variables are not zero'd out.)
 	 */
 	memset(ts, 0, sizeof(*ts));
 	/*
@@ -49,9 +50,13 @@ int cap_type_system_init(struct cap_type_system *ts)
 
 void cap_type_system_destroy(struct cap_type_system *ts)
 {
+	int i;
 	/*
-	 * Nothing to do for now.
+	 * Free up any strdup'd names in the cap_types array
 	 */
+	for (i = CAP_TYPE_FIRST_NONBUILTIN; i < CAP_TYPE_MAX; ++i)
+		if (ts->types[i].name)
+			free(ts->types[i].name);
 }
 
 void cap_type_system_free(struct cap_type_system *ts)
@@ -67,7 +72,7 @@ cap_type_t cap_register_private_type(struct cap_type_system *ts,
 	cap_mutex_lock(&ts->lock);
 	if (type <= 0) {
 		for (i = CAP_TYPE_FIRST_NONBUILTIN; i < CAP_TYPE_MAX; ++i) {
-			if (cap_types[i].name)
+			if (ts->types[i].name)
 				continue;
 			else {
 				break;
@@ -80,19 +85,19 @@ cap_type_t cap_register_private_type(struct cap_type_system *ts,
 		CAP_ERR("not enough types available!");
 		ret = -ENOBUFS;
 		goto out;
-	} else if (cap_types[i].name) {
+	} else if (ts->types[i].name) {
 		CAP_ERR("cap type %d already in use", type);
 		ret = -EADDRINUSE;
 		goto out;
 	} else {
-		cap_types[i].name = strdup(ops->name);
-		cap_types[i].delete = ops->delete;
-		cap_types[i].revoke = ops->revoke;
+		ts->types[i].name = strdup(ops->name);
+		ts->types[i].delete = ops->delete;
+		ts->types[i].revoke = ops->revoke;
 		ret = i;
 		goto out;
 	}
 out:
-	cap_mutex_unlock(&global_lock);
+	cap_mutex_unlock(&ts->lock);
 	return ret;
 }
 

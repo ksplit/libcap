@@ -13,10 +13,13 @@ struct cdt_cache {
 
 static struct cdt_cache cdt_cache;
 static cap_mutex_t global_lock;
-static struct cap_type_ops cap_types[CAP_TYPE_MAX] = {
-	{"none", NULL, NULL,}, {"invalid", NULL, NULL},
-	{"free", NULL, NULL}, {"cnode", NULL, NULL},
-};
+
+#ifdef CAP_ENABLE_GLOBAL_TYPES
+/*
+ * The internal global type system
+ */
+static struct cap_type_system global_ts;
+#endif 
 
 /*
  * This is used in a hack to make the cnode table slab caches
@@ -49,13 +52,23 @@ int cap_init(void)
 	 */
 	cap_mutex_init(&cdt_cache.lock);
 	cap_mutex_init(&global_lock);
+#ifdef CAP_ENABLE_GLOBAL_TYPES
 	/*
-	 * Zero out types
+	 * Initialize global type system
 	 */
-	memset(cap_types, 0, sizeof(cap_types));
+	ret = cap_type_system_init(&global_ts);
+	if (ret) {
+		CAP_ERR("global type system init failed");
+		goto fail3;
+	}
+#endif
 	
 	return 0;
 
+#ifdef CAP_ENABLE_GLOBAL_TYPES
+fail3:
+	cap_cache_destroy(cdt_cache.cdt_root_cache);
+#endif
 fail2:
 	__cptr_fini();
 fail1:
@@ -70,52 +83,23 @@ void cap_fini(void)
 	 */
 	cap_cache_destroy(cdt_cache.cdt_root_cache);
 	/*
-	 * Free up any strdup'd names in the cap_types array
-	 */
-	for (i = CAP_TYPE_FIRST_NONBUILTIN; i < CAP_TYPE_MAX; ++i)
-		if (cap_types[i].name)
-			free(cap_types[i].name);
-	/*
 	 * Tear down cptr cache subsystem
 	 */
 	__cptr_fini();
+#ifdef CAP_ENABLE_GLOBAL_TYPES
+	/*
+	 * Destroy global type system
+	 */
+	cap_type_system_destroy(&global_ts);
+#endif
 }
 
+#ifdef CAP_ENABLE_GLOBAL_TYPES
 cap_type_t cap_register_type(cap_type_t type, const struct cap_type_ops *ops)
 {
-	int i, ret;
-
-	cap_mutex_lock(&global_lock);
-	if (type <= 0) {
-		for (i = CAP_TYPE_FIRST_NONBUILTIN; i < CAP_TYPE_MAX; ++i) {
-			if (cap_types[i].name)
-				continue;
-			else {
-				break;
-			}
-		}
-	} else
-		i = type;
-
-	if (i >= CAP_TYPE_MAX) {
-		CAP_ERR("not enough types available!");
-		ret = -ENOBUFS;
-		goto out;
-	} else if (cap_types[i].name) {
-		CAP_ERR("cap type %d already in use", type);
-		ret = -EADDRINUSE;
-		goto out;
-	} else {
-		cap_types[i].name = strdup(ops->name);
-		cap_types[i].delete = ops->delete;
-		cap_types[i].revoke = ops->revoke;
-		ret = i;
-		goto out;
-	}
- out:
-	cap_mutex_unlock(&global_lock);
-	return ret;
+	return cap_register_private_type(&global_ts, type, ops);
 }
+#endif
 
 /**
  * Allocates a new cdt root node using the cdt cache.
@@ -209,7 +193,8 @@ inline void cap_free_cspace(struct cspace *cspace) { cap_free(cspace); }
 /**
  * Initializes the cspace's fields.
  */
-int cap_init_cspace(struct cspace *cspace)
+int cap_init_cspace_with_type_system(struct cspace *cspace,
+				struct cap_type_system *ts)
 {
 	int ret;
 	char name[32];
@@ -219,7 +204,10 @@ int cap_init_cspace(struct cspace *cspace)
 		CAP_ERR("mutex initialization failed");
 		return ret;
 	}
-
+	/*
+	 * Install type system
+	 */
+	cspace->ts = ts;
 	/*
 	 * Initialize the cnode table cache. We can't use the
 	 * KMEM_CACHE macro because we need to use unique names. This
@@ -263,6 +251,13 @@ int cap_init_cspace(struct cspace *cspace)
 
 	return 0;
 }
+
+#ifdef CAP_ENABLE_GLOBAL_TYPES
+int cap_init_cspace(struct cspace *cspace)
+{
+	return cap_init_cspace_with_type_system(cspace, &global_ts);
+}
+#endif
 
 inline void cap_cspace_setowner(struct cspace *cspace, void * owner) {
     cspace->owner = owner;
@@ -565,9 +560,10 @@ static void cap_notify_delete(struct cspace *cspace, struct cnode *cnode)
 	cap_type_t type = cnode->type;
 
 	if (type >= CAP_TYPE_FIRST_NONBUILTIN && type < CAP_TYPE_MAX
-	    && cap_types[type].name) {
-		if (cap_types[type].delete)
-			cap_types[type].delete(cspace, cnode, cnode->object);
+	    && cspace->ts->types[type].name) {
+		if (cspace->ts->types[type].delete)
+			cspace->ts->types[type].delete(cspace, cnode, 
+						cnode->object);
 	} else {
 		CAP_ERR("invalid object type %d -- BUG!", type);
 	}
@@ -578,9 +574,10 @@ static void cap_notify_revocation(struct cspace *cspace, struct cnode *cnode)
 	cap_type_t type = cnode->type;
 
 	if (type >= CAP_TYPE_FIRST_NONBUILTIN && type < CAP_TYPE_MAX
-	    && cap_types[type].name) {
-		if (cap_types[type].revoke)
-			cap_types[type].revoke(cspace, cnode, cnode->object);
+	    && cspace->ts->types[type].name) {
+		if (cspace->ts->types[type].revoke)
+			cspace->ts->types[type].revoke(cspace, cnode, 
+						cnode->object);
 	} else {
 		CAP_ERR("invalid object type %d -- BUG!", type);
 	}
@@ -826,7 +823,6 @@ int cap_grant(struct cspace *cspacesrc, cptr_t c_src,
 	struct cnode *cnodesrc, *cnodedst;
 	int done;
 	int ret;
-
 	/*
 	 * Fail for null
 	 */
@@ -834,13 +830,24 @@ int cap_grant(struct cspace *cspacesrc, cptr_t c_src,
 		CAP_ERR("trying to grant with a null cptr");
 		return -EINVAL;
 	}
-
+	/*
+	 * Fail if source and dest cspaces have different
+	 * type systems. (It doesn't make sense to insert an
+	 * object of an unregistered type in the dest cspace.)
+	 *
+	 * XXX: We don't do this under a lock, since, for now,
+	 * a cspace's type system cannot change after it is
+	 * created.
+	 */
+	if (cspacesrc->ts != cspacedst->ts) {
+		CAP_ERR("source and dest cspaces have different type systems");
+		return -EINVAL;
+	}
 	/*
 	 * This entire thing has to go in a loop - we need to release
 	 * the lock on (at least) the source cnode and try again until we can 
 	 * lock the cdt containing the source cnode.
 	 */
-
 	do {
 		/*
 		 * Look up source
@@ -1167,7 +1174,11 @@ static void cspace_tear_down(struct cspace *cspace)
 	 * Get rid of the table cache
 	 */
 	cap_cache_destroy(cspace->cnode_table_cache);
-
+	/*
+	 * Note: We don't destroy the type system at this point. The
+	 * libcap user is responsible for destroying that at the
+	 * right time.
+	 */
 	return;
 }
 
@@ -1220,10 +1231,10 @@ void cap_destroy_cspace(struct cspace *cspace)
  * as a kernel module, other kernel code can link with it. */
 EXPORT_SYMBOL(cap_init);
 EXPORT_SYMBOL(cap_fini);
-EXPORT_SYMBOL(cap_register_type);
+EXPORT_SYMBOL(cap_init_cspace_with_type_system);
+EXPORT_SYMBOL(cap_register_private_type);
 EXPORT_SYMBOL(cap_alloc_cspace);
 EXPORT_SYMBOL(cap_free_cspace);
-EXPORT_SYMBOL(cap_init_cspace);
 EXPORT_SYMBOL(cap_destroy_cspace);
 EXPORT_SYMBOL(cap_cspace_setowner);
 EXPORT_SYMBOL(cap_cspace_getowner);
@@ -1240,3 +1251,7 @@ EXPORT_SYMBOL(cap_insert);
 EXPORT_SYMBOL(cap_delete);
 EXPORT_SYMBOL(cap_grant);
 EXPORT_SYMBOL(cap_revoke);
+#ifdef CAP_ENABLE_GLOBAL_TYPES
+EXPORT_SYMBOL(cap_init_cspace);
+EXPORT_SYMBOL(cap_register_type);
+#endif
