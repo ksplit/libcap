@@ -11,6 +11,7 @@ SUBDIRS = include src test
 USER_SRCS = \
 	../../common/cap.c \
 	../../common/cptr_cache.c \
+	../../common/type_system.c \
 	src/cap_user.c \
 	src/cptr_cache_user.c
 USER_INCLUDES = -I$(abs_top_srcdir)/src/platform/user/include

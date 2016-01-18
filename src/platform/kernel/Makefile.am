@@ -17,7 +17,8 @@ AM_CPPFLAGS = \
 
 COMMON_SRCS = \
 	../../common/cap.c \
-	../../common/cptr_cache.c
+	../../common/cptr_cache.c \
+	../../common/type_system.c
 
 export AM_CPPFLAGS COMMON_SRCS
 

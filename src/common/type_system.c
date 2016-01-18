@@ -6,6 +6,15 @@
 #include <libcap.h>
 #include <libcap_internal.h>
 
+#define CAP_TYPE_NUM_BUILTIN CAP_TYPE_FIRST_NON_BUILTIN
+
+static struct cap_type_ops builtin_cap_types[CAP_TYPE_NUM_BUILTIN] = {
+	{"none", NULL, NULL,}, 
+	{"invalid", NULL, NULL},
+	{"free", NULL, NULL}, 
+	{"cnode", NULL, NULL},
+};
+
 int cap_type_system_alloc(struct cap_type_system **ts)
 {
 	*ts = cap_zalloc(1, sizeof(**ts));
@@ -16,6 +25,7 @@ int cap_type_system_alloc(struct cap_type_system **ts)
 
 int cap_type_system_init(struct cap_type_system *ts)
 {
+	int i;
 	/*
 	 * Zero out types
 	 *
@@ -24,6 +34,11 @@ int cap_type_system_init(struct cap_type_system *ts)
 	 * type systems.)
 	 */
 	memset(ts, 0, sizeof(*ts));
+	/*
+	 * Install built-in types
+	 */
+	for (i = 0; i < CAP_TYPE_NUM_BUILTIN; i++)
+		ts->types[i] = builtin_cap_types[i];
 	/*
 	 * Init lock
 	 */
