@@ -6,7 +6,7 @@
 #include <libcap.h>
 #include <libcap_internal.h>
 
-#define CAP_TYPE_NUM_BUILTIN CAP_TYPE_FIRST_NON_BUILTIN
+#define CAP_TYPE_NUM_BUILTIN CAP_TYPE_FIRST_NONBUILTIN
 
 static struct cap_type_ops builtin_cap_types[CAP_TYPE_NUM_BUILTIN] = {
 	{"none", NULL, NULL,}, 
