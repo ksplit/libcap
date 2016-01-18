@@ -320,20 +320,15 @@ struct cspace * cap_alloc_cspace(void);
  * @ts: the type system to attach
  *
  * Sets up cspace - initializes lock, root cnode table, etc. Attaches
- * type system @ts to it.
- *
- * Bumps the reference count on @ts. When @cspace is destroyed,
- * drops reference on @ts.
+ * type system @ts to it. The caller is responsible for ensuring
+ * the type system `lives' as long as the cspace. After all cspaces
+ * using @ts have been destroyed, it's safe to destroy @ts.
  */
 int cap_init_cspace_with_type_system(struct cspace *cspace,
 				struct cap_type_system *ts);
 /**
  * cap_destroy_cspace -- Equivalent to calling lcd_cap_delete on all cnodes 
  *                       in cspace. Frees up all cnode tables, etc.
- *
- * Drops reference count on the type system that was attached to
- * the cspace when it was created. If the type system reference
- * count reaches zero, it will be freed.
  */
 void cap_destroy_cspace(struct cspace *cspace);
 /**
@@ -360,10 +355,6 @@ void* cap_cspace_getowner(struct cspace *cspace);
  *                               was created (which may be the global
  *                               type system)
  * @cspace: the cspace
- *
- * This function will not bump the reference count on the type system.
- * If you plan to use the type system after all other references go away,
- * you should bump its reference count (via cap_type_system_get).
  */
 struct cap_type_system* cap_cspace_get_type_system(struct cspace *cspace);
 /**
@@ -373,7 +364,8 @@ struct cap_type_system* cap_cspace_get_type_system(struct cspace *cspace);
  * @object: the object to insert
  * @type: the type to associate with @object
  *
- * You must register @type via cap_register_type before using it.
+ * You must register @type via cap_register_private_type or
+ * cap_register_type (if available) before using it.
  *
  * The lifetime of @object must be at least as long as @object is
  * in the cspace (it's up to you, the libcap user, to ensure that).
@@ -407,6 +399,9 @@ void cap_delete(struct cspace *cspace, cptr_t c);
  *
  * Copies cnode data in src cnode at c_src to dest cnode at c_dst. The dest
  * cnode will be a child of the src cnode in the cdt containing src cnode.
+ *
+ * IMPORTANT: If the source and destination cspaces have different type
+ * systems (the check is done for *pointer equality*), then grant fails.
  *
  * Note: Metadata pointers *are not* carried over to the destination slot (the
  * destination slot will start out with NULL metadata).
