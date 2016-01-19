@@ -8,8 +8,11 @@ SUBDIRS = include src module test
 # Kernel files
 KERNEL_INCLUDES = -I$(abs_top_srcdir)/src/platform/kernel/include
 
-# Add includes to include search path
+# Add includes to include search path. (The root of the builddir is necessary to
+# add explicitly for the kernel build, because we pass the include paths to the kernel
+# build system. It won't check in the root of the build dir unless we tell it to.)
 AM_CPPFLAGS = \
+	-I$(abs_top_builddir) \
 	-I$(abs_top_srcdir)/src/include \
 	-I$(abs_top_builddir)/src/include \
 	$(KERNEL_INCLUDES) \
@@ -32,6 +35,7 @@ if ENABLE_KERNEL_MODULE
 MAYBE_ALL_MODULE = all-module
 MAYBE_CLEAN_MODULE = clean-module
 MAYBE_MODULES_INSTALL = do-modules-install
+MAYBE_INSTALL_MODULE = install-libcap-module
 
 endif
 
@@ -52,60 +56,18 @@ all-lib-cp: all-lib
 all-lib:
 	$(MAKE) -C $(KDIR) M=$(LIBCAP_KBUILD)
 
-install-headers:
-	@echo "Installing libcap kernel headers to $(KERNEL_HEADERS_INSTALL)..."
-	mkdir -p $(KERNEL_HEADERS_INSTALL)
-	cp $(top_srcdir)/src/platform/kernel/include/libcap_platform.h $(KERNEL_HEADERS_INSTALL)
-	cp $(top_srcdir)/src/platform/kernel/include/libcap_platform_types.h $(KERNEL_HEADERS_INSTALL)
-	cp $(top_srcdir)/src/include/libcap.h $(KERNEL_HEADERS_INSTALL)
-	cp $(top_builddir)/src/include/libcap_config.h $(KERNEL_HEADERS_INSTALL)
-	cp $(top_srcdir)/src/include/libcap_types.h $(KERNEL_HEADERS_INSTALL)
-	cp $(top_srcdir)/src/include/libcap_list.h $(KERNEL_HEADERS_INSTALL)
+# Move libcap.a and libcap.ko into dest dir. Easier to chain with
+# multiple targets (esp. since we may not have built the module)
+install-exec-hook: install-libcap $(MAYBE_INSTALL_MODULE)
 
-uninstall-headers:
-	@echo "Uninstalling libcap kernel headers from $(KERNEL_HEADERS_INSTALL)..."
-	rm -f $(KERNEL_HEADERS_INSTALL)/libcap_platform.h
-	rm -f $(KERNEL_HEADERS_INSTALL)/libcap_platform_types.h
-	rm -f $(KERNEL_HEADERS_INSTALL)/libcap.h
-	rm -f $(KERNEL_HEADERS_INSTALL)/libcap_config.h
-	rm -f $(KERNEL_HEADERS_INSTALL)/libcap_types.h
-	rm -f $(KERNEL_HEADERS_INSTALL)/libcap_list.h
+install-libcap-module: install-setup-dir
+	cp module/libcap.ko $(DESTDIR)$(libdir)
 
-# Don't do regular install; user probably doesn't want kernel stuff in
-# user-level directories. (In retrospect, maybe a regular install isn't
-# a bad idea. User can always uninstall if they mess up and choose the
-# wrong prefix. Of course, we have to manually spell out the install
-# rule using $DESTDIR.)
-install: install-headers
-	@echo ""; \
-	echo "----------------------------------------"; \
-	echo "             NOTE"; \
-	echo ""; \
-	echo "We only install the kernel headers (according to the"; \
-	echo "KERNEL_HEADERS_INSTALL variable). You probably don't want"; \
-	echo "e.g. kernel headers mixed up in your user include directories"; \
-	echo "and stuff. You can find libcap.a and libcap.ko in"; \
-	echo "(libcap build dir)/src/platform/kernel."; \
-	echo "To install the kernel module, do 'make modules_install'"; \
-	echo "in the root of the libcap build tree."; \
-	echo ""; \
-	echo "----------------------------------------"
+install-libcap: install-setup-dir
+	cp libcap.a $(DESTDIR)$(libdir)
 
-uninstall: uninstall-headers
-	@echo "----------------------------------------"; \
-	echo "             NOTE"; \
-	echo ""; \
-	echo "Skipping uninstall of libcap.a and libcap.ko."; \
-	echo "If you installed the libcap.ko kernel module via"; \
-	echo "modules_install (in the root of the libcap build tree)"; \
-	echo "then there really isn't an easy way (that I know of) to"; \
-	echo "remove the kernel module. It was installed somewhere in"; \
-	echo '  /lib/modules/`uname -r`/build'; \
-	echo "(or something similar)."; \
-	echo "You will have to manually remove it."; \
-	echo ""; \
-	echo "----------------------------------------"
-
+install-setup-dir:
+	$(MKDIR_P) $(DESTDIR)$(libdir)
 
 do-modules-install:
 	$(MAKE) -C $(KDIR) M=$(LIBCAP_KERNEL_MODULE_KBUILD) \
@@ -123,4 +85,5 @@ clean-lib:
 	rm -f libcap.a
 
 .PHONY: all-module all-lib all-lib-cp do-modules-install modules_install \
-	clean-module clean-lib install-headers uninstall-headers
+	clean-module clean-lib install-headers uninstall-headers \
+	install-libcap-module install-libcap install-setup-dir

@@ -64,22 +64,23 @@ Third, configure the build. Important options:
                                 default is no (does not build tests)
 
     --enable-kernel-module   -- if you selected PLATFORM=kernel, you can
-                                build libcap as a kernel module (default no).
+                                build libcap as a kernel module (default yes).
                                 You will be able to install libcap.ko and
                                 use it with other kernel modules (rather than
                                 statically linking libcap.a into those
-                                modules at compile time)
-
- KERNEL_HEADERS_INSTALL=dir  -- if you selected PLATFORM=kernel, this is
-                                where the libcap headers will be installed;
-                                the default is (libcap build dir)/include.
-                                If the directory does not exist, it will be
-                                created. Note that the uninstall will not 
-                                remove the directory, just the headers.
+                                modules at compile time). Note that you might get
+                                a kernel build warning that symbols are exported
+                                twice; this is ok, so long as you only install the
+                                kernel module, or only use the library. (You will
+                                get an error at module load time if you try to use
+                                both.)
 
     --prefix                 -- the installation prefix; you may want to set 
                                 it to something out-of-the-way like 
-                                /opt/libcap, or you might not. E.g.,
+                                /opt/libcap, or you might not, especially if you're
+                                doing a kernel build (you probably shouldn't install
+                                kernel headers and code in /usr, but it's up to you). 
+                                E.g.,
 
                                    $ ../libcap/configure --prefix=/opt/libcap
 

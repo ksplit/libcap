@@ -77,7 +77,6 @@ fail1:
 
 void cap_fini(void)
 {
-	int i;
 	/*
 	 * Destroy cdt cache
 	 */
