@@ -91,7 +91,6 @@ struct cdt_root_node {
     /* Points to the parent CDT root node of this CDT root node if it
      * exists. If CDT root node has no parent, it is NULL. */
     struct cdt_root_node *parent;
-	struct cnode *cnode;
 	enum allocation_state state;
 };
 

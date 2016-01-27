@@ -103,7 +103,7 @@ cap_type_t cap_register_type(cap_type_t type, const struct cap_type_ops *ops)
 /**
  * Allocates a new cdt root node using the cdt cache.
  */
-struct cdt_root_node *__cap_cdt_root_create(void)
+static struct cdt_root_node *__cap_cdt_root_create(void)
 {
 	int ret;
 	struct cdt_root_node *cdt_node = NULL;
@@ -127,7 +127,7 @@ struct cdt_root_node *__cap_cdt_root_create(void)
 /** 
  * Free a cdt_root_node previously allocated with `__cap_cdt_root_create`. 
  * This function should only be called by `__cap_cdt_root_decref`. */
-void __cap_cdt_root_free(struct cdt_root_node *cdt_node)
+static void __cap_cdt_root_free(struct cdt_root_node *cdt_node)
 {
 	int ret;
 
@@ -142,15 +142,29 @@ void __cap_cdt_root_free(struct cdt_root_node *cdt_node)
 	cap_mutex_unlock(&cdt_cache.lock);
 }
 
-/* Increment the reference count on the given cdt_root */
-void __cap_cdt_root_incref(struct cdt_root_node *cdt_root) {
+/* Increment the reference count on the given cdt_root. The cdt_root lock must
+ * be held to call this function. */
+static inline void __cap_cdt_root_incref(struct cdt_root_node *cdt_root) {
     cdt_root->refcount++;
 }
 
-/* Decrement the reference count on the given cdt_root. This function frees
- * the cdt_root when the count reaches zero. */
-void __cap_cdt_root_decref(struct cdt_root_node *cdt_root) {
-    assert(cdt_root->refcount > 0 && "Tried to decref a cdt_root at 0 references");
+/* Decrement the reference count on the given cdt_root. Since this function
+ * assumes that there's someone that wants to keep a lock on the CDT, don't
+ * allow decref no_locks that will free the cdt_root. The cdt_root lock must
+ * be held when this function is called. */
+static inline void __cap_cdt_root_decref_no_unlock(struct cdt_root_node *cdt_root) {
+    CAP_BUG_ON(cdt_root->refcount <= 1
+               && "Tried to decref_no_unlock a cdt_root at 1 or fewer references.");
+    cdt_root->refcount--;
+}
+
+/* This function decrements the reference count on the given cdt_root. 
+ * This function frees the cdt_root when the count reaches zero. The cdt_root
+ * lock must be held when this function is called, it will be released by
+ * this function. */
+static inline void __cap_cdt_root_decref(struct cdt_root_node *cdt_root) {
+    CAP_BUG_ON(cdt_root->refcount <= 0 
+               && "Tried to decref a cdt_root at 0 references");
     cdt_root->refcount--;
     /* A thread must have this cdt_root's lock to call decref, but they're
      * specifically signaling the fact that they no longer reference this
@@ -562,6 +576,7 @@ int cap_insert(struct cspace *cspace, cptr_t c, void *object, cap_type_t type)
 	cnode->object = object;
 	cnode->type = type;
 	cnode->cptr = c;
+
 	/*
 	 * Set up cdt
 	 */
@@ -570,7 +585,7 @@ int cap_insert(struct cspace *cspace, cptr_t c, void *object, cap_type_t type)
         // XXX: Not sure if this is correct
         return -1;
     }
-	cnode->cdt_root->cnode = cnode;
+
     __cap_cdt_root_incref(cnode->cdt_root);
 	/*
 	 * Release cnode
@@ -580,266 +595,79 @@ int cap_insert(struct cspace *cspace, cptr_t c, void *object, cap_type_t type)
 	return 0;
 }
 
-static void cap_notify_delete(struct cspace *cspace, struct cnode *cnode)
-{
-	cap_type_t type = cnode->type;
+/* Get the type ops for the given cnode. If no type ops can be found,
+ * an error message is printed and NULL is returned. */
+static struct cap_type_ops * __cap_cnode_type_ops(struct cnode *cnode) {
+    if (cnode->type < CAP_TYPE_FIRST_NONBUILTIN || cnode->type >= CAP_TYPE_MAX) {
+        CAP_ERR("invalid object type %d -- BUG!", cnode->type);
+        return NULL;
+    }
 
-	if (type >= CAP_TYPE_FIRST_NONBUILTIN && type < CAP_TYPE_MAX
-	    && cspace->ts->types[type].name) {
-		if (cspace->ts->types[type].delete)
-			cspace->ts->types[type].delete(cspace, cnode, 
-						cnode->object);
-	} else {
-		CAP_ERR("invalid object type %d -- BUG!", type);
-	}
+    struct cap_type_ops * ops = &cnode->cspace->ts->types[cnode->type];
+
+    if (! ops->name) { 
+        CAP_ERR("invalid object type %d -- BUG!", cnode->type); 
+        return NULL;
+    }
+
+    return ops;
 }
 
-static void cap_notify_revocation(struct cspace *cspace, struct cnode *cnode)
+static void __cap_notify_delete(struct cnode *cnode)
 {
-	cap_type_t type = cnode->type;
+    struct cap_type_ops * ops = __cap_cnode_type_ops(cnode);
+    if (ops && ops->delete) { ops->delete(cnode); }
+}
 
-	if (type >= CAP_TYPE_FIRST_NONBUILTIN && type < CAP_TYPE_MAX
-	    && cspace->ts->types[type].name) {
-		if (cspace->ts->types[type].revoke)
-			cspace->ts->types[type].revoke(cspace, cnode, 
-						cnode->object);
-	} else {
-		CAP_ERR("invalid object type %d -- BUG!", type);
-	}
+static void __cap_notify_grant(struct cnode *src, struct cnode *dst) {
+    struct cap_type_ops *ops = __cap_cnode_type_ops(src);
+    if (ops && ops->grant) { ops->grant(src, dst); }
+}
+
+static void __cap_notify_derive(struct cnode *src, struct cnode *dst) {
+    struct cap_type_ops *src_ops = __cap_cnode_type_ops(src);
+    if (src_ops && src_ops->derive_src) { src_ops->derive_src(src, dst); }
+    struct cap_type_ops *dst_ops = __cap_cnode_type_ops(src);
+    if (dst_ops && dst_ops->derive_dst) { src_ops->derive_dst(src, dst); }
 }
 
 /**
- * Does actual removal from cdt. Returns non-zero if cnode is the last one
- * in the cdt.
+ * Does actual removal from cdt. When this function exits, the CDT will no
+ * longer be locked. 
  *
  * ** Expects cnode and cdt_root to be locked, in that order. **
  */
 // was called "do_delete_from_cdt"
-static int __cap_cdt_root_remove(struct cnode *cnode,
-			                     struct cdt_root_node *cdt_root) {
-	int last_node = 0;
+static inline void __cap_cdt_remove_(struct cnode *cnode) {
 	/*
 	 * Make the cnode's children the children of cnode's parent by
 	 * putting them in the cnode's siblings list. (Note that
 	 * list_splice does the right thing when children or siblings is
-	 * empty.)
+	 * empty.) Re-initializes cnode->children to be empty, so no need to
+     * do a del.
 	 */
 	list_splice_init(&cnode->children, &cnode->siblings);
-	/*
-	 * If cnode was the root cnode of the cdt, update the cdt's root.
-	 */
-	if (cdt_root->cnode == cnode) {
-		/*
-		 * See if anyone is in siblings - this will include cnode's
-		 * children since we spliced lists. list_first_entry will
-		 * look at the next list item, not the current cnode.
-		 */
-		if (!list_empty(&cnode->siblings)) {
-			cdt_root->cnode = list_first_entry(&cnode->siblings,
-							   struct cnode,
-							   siblings);
-		} else {
-			last_node = 1;
-			cdt_root->cnode = NULL;
-		}
-	}
+
 	/*
 	 * Remove cnode from list of siblings (won't break if siblings is
 	 * empty).
 	 */
 	list_del_init(&cnode->siblings);
-
-	return last_node;
 }
 
-/**
- * Tries to lock cdt and remove cnode from it. Returns non-zero if 
- * cnode successfully deleted.
- */
-static int try_delete_cnode(struct cspace *cspace, struct cnode *cnode)
-{
-	int last_node;
-	struct cdt_root_node *cdt_node;
-
-	/*
-	 * Try to lock the cdt
-	 */
-	if (!cap_mutex_trylock(&cnode->cdt_root->lock)) {
-		/*
-		 * Tell caller to retry
-		 */
-		return 0;
-	}
-	/*
-	 * Get the cdt
-	 */
-	cdt_node = cnode->cdt_root;
-	/*
-	 * Delete the cnode from the cdt
-	 */
-    last_node = __cap_cdt_root_remove(cnode, cdt_node);
-	if (last_node)
-		cdt_node->state = ALLOCATION_MARKED_FOR_DELETE;
-	/*
-	 * Unlock cdt
-	 */
-	cap_mutex_unlock(&cdt_node->lock);
-
-	/* Order of what follows is important */
-
-	/*
-	 * Update microkernel state to reflect rights change (e.g., if we're
-	 * deleting a cnode for an endpoint, we need to ensure the lcd isn't
-	 * in the endpoint's queues).
-	 */
-	cap_notify_revocation(cspace, cnode);
-
-	if (last_node) {
-		/*
-		 * No lcd's have a reference to the object anymore. Time to
-		 * tear it down.
-		 *
-		 * Delete the cdt
-		 */
-        __cap_cdt_root_free(cdt_node);
-		/*
-		 * Tear down the object.
-		 *
-		 * SPECIAL CASE: If deleting an lcd, and the calling lcd is
-		 * the lcd to be deleted, this call does not return.
-		 */
-		cap_notify_delete(cspace, cnode);
-	}
-
-	/*
-	 * Mark cnode as free, null out fields.
-	 *
-	 * XXX: We could possibly free up the cnode table if all of its cnodes
-	 * are free. For now, they just hang around and will be freed when
-	 * the whole cspace is torn down.
-	 */
-
-	cnode->type = CAP_TYPE_FREE;
-	cnode->object = NULL;
-	cnode->cdt_root = NULL;
-	cnode->metadata = NULL;
-	/*
-	 * Signal we are done
-	 */
-	return 1;
+/* Same as __cap_cdt_remove_, but does a no_unlock decref and doesn't release
+ * the CDT lock. */
+static void __cap_cdt_remove_no_unlock(struct cnode *cnode) {
+    __cap_cdt_remove_(cnode);
+    __cap_cdt_root_decref_no_unlock(cnode->cdt_root);
+    cnode->cdt_root = NULL;
 }
 
-void cap_delete(struct cspace *cspace, cptr_t c)
-{
-	struct cnode *cnode;
-	int done;
-	int ret;
-
-	/*
-	 * Fail for null
-	 */
-	if (cptr_is_null(c)) {
-		CAP_ERR("trying to delete null cptr");
-		return;
-	}
-
-	/*
-	 * This entire thing has to go in a loop - we need to release
-	 * the lock on cnode and try again until we can lock the cdt.
-	 */
-	do {
-		/*
-		 * Look up cnode
-		 */
-		ret = cap_cnode_get(cspace, c, &cnode);
-		if (ret) {
-			CAP_ERR("error getting cnode");
-			goto out1;
-		}
-
-		/*
-		 * If the cnode is already marked as free, just return.
-		 *
-		 * (The cnode may not have been free the first time we tried
-		 * to delete it, but when we reattempted, it was freed by 
-		 * someone else.)
-		 */
-		if (cnode->type == CAP_TYPE_FREE) {
-			CAP_MSG("cnode already free");
-			goto out2;
-		}
-
-		/*
-		 * If cnode is invalid or has type cnode (points to another 
-		 * cnode table), ignore and return.
-		 */
-		if (cnode->type == CAP_TYPE_INVALID ||
-		    cnode->type == CAP_TYPE_CNODE) {
-			CAP_MSG("ignoring attempt to delete invalid cnode");
-			goto out2;
-		}
-
-		/*
-		 * Delete the cnode
-		 */
-		done = try_delete_cnode(cspace, cnode);
-
-		/*
-		 * Release cnode
-		 */
-		cap_cnode_put(cnode);
-
-		if (!done) {
-			/*
-			 * Someone else is using the cdt; wait 1 ms for him
-			 * to finish.
-			 */
-			msleep(1);
-		}
-
-	} while (!done);
-
-	return;
-
- out2:
-	cap_cnode_put(cnode);
- out1:
-	return;
-}
-
-static int try_grant(struct cspace *cspacedst, struct cnode *cnodesrc,
-		     struct cnode *cnodedst)
-{
-	/*
-	 * Try to lock the cdt containing source cnode (dest cnode should
-	 * not be in a cdt)
-	 */
-	if (!cap_mutex_trylock(&cnodesrc->cdt_root->lock)) {
-		/*
-		 * Tell caller to retry
-		 */
-		return 0;
-	}
-
-	/*
-	 * Add dest cnode to source's children in cdt
-	 */
-	list_add(&cnodedst->siblings, &cnodesrc->children);
-
-	/*
-	 * Unlock cdt
-	 */
-	cap_mutex_unlock(&cnodesrc->cdt_root->lock);
-
-	/*
-	 * Set dest cnode's fields with source's
-	 */
-	cnodedst->type = cnodesrc->type;
-	cnodedst->object = cnodesrc->object;
-	cnodedst->cspace = cspacedst;
-	cnodedst->cdt_root = cnodesrc->cdt_root;
-
-	return 1;
+/* Same as __cap_cdt_remove_, but does a real decref and releases the CDT lock. */ 
+static void __cap_cdt_remove(struct cnode *cnode) {
+    __cap_cdt_remove_(cnode);
+    __cap_cdt_root_decref(cnode->cdt_root);
+    cnode->cdt_root = NULL;
 }
 
 static bool __cap_cnode_is_used(struct cnode * c) {
@@ -852,24 +680,49 @@ static bool __cap_cnode_is_free(struct cnode * c) {
 	return (c->type == CAP_TYPE_FREE);
 }
 
+/* Update the cdt_root of the given cnode (and the refcount of any intermediate
+ * cdt_roots) given a know "real" cdt_root (a cdt_root whose parent is null). The
+ * "real" root isn't locked, so it's lock can be held while this function is
+ * called. This function is not safe to call unless the lock on the given cdt_root
+ * is held. Returns 0 on succes, returns a negative value if interrupted. */
+static int __cap_cnode_fixup_cdt_root_trusted_root(struct cdt_root_node *real_root,
+                                                   struct cnode *c) {
+    struct cdt_root_node * old_root = c->cdt_root;
+    struct cdt_root_node * root = old_root;
+    if (root == real_root) { return 0; }
+    while (root != real_root) {
+        /* Any code calling this function should already hold the root lock, and
+         * any code acquiring an intermediate lock will back off, so it's safe
+         * to call this blocking. */
+        int status = cap_mutex_lock_interruptible(&root->lock);
+        if (status) { return status; }
+        old_root = root;
+        root = root->parent;
+        /* decref our reference to the intermediate root */
+        __cap_cdt_root_decref(old_root);
+    }
+    return 0;
+}
+
 /* Acquire the CDT root lock for the CDT associated with this cnode 'c'.
  * This function will update cdt_root pointers and reference count appropriately
  * if the tree this cnode was originally part of is spliced onto another CDT. */
 static bool __cap_cnode_try_acquire_cdt_root(struct cnode *c) {
     struct cdt_root_node * old_root = c->cdt_root;
     struct cdt_root_node * root = old_root;
-    while (root->parent != NULL) { root = root->parent; }
-    /* We always need to do this, even if it's the old root, because
-     * we need to decref if we're switching to a new root */
-    if (!cap_mutex_trylock(&old_root->lock)) { return false; }
-    /* If there's no parent CDT root, we're done */
-    if (old_root == root) { return true; }
-    /* Otherwise, try and lock the actual root as well. */
-    if (!cap_mutex_trylock(&root->lock)) { goto fail; }
-    /* Update this node to use the new CDT root node. */
-    c->cdt_root = root;
-    __cap_cdt_root_incref(root);
-    __cap_cdt_root_decref(old_root);
+    /* Always have to lock our current root, even if it's not the "real" root. */
+    if (!cap_mutex_trylock(&root->lock)) { goto fail; /* old_root = root */ }
+    while (root->parent != NULL) {
+        old_root = root;
+        root = root->parent;
+        /* Try and lock our new root (the parent of our current) */
+        if (!cap_mutex_trylock(&root->lock)) { goto fail; }
+        /* Update the roots */
+        c->cdt_root = root;
+        /* don't __cap_cdt_root_incref because the incref happens implicitly on
+         * derive */
+        __cap_cdt_root_decref(old_root);
+    }
     return true;
 fail:
     cap_mutex_unlock(&old_root->lock);
@@ -898,28 +751,41 @@ static bool __cap_cnode_is_root(struct cnode *c) {
         }
     }
     return true;
-
 }
 
 /* Try to actually add 'dst' as a child of 'src' in src's CDT. */
 static int __cap_try_derive(struct cnode *src, struct cnode *dst) {
     int ret = 0;
 
-    if (!__cap_cnode_try_acquire_cdt_root(src)) { goto fail3; }
-    if (!__cap_cnode_try_acquire_cdt_root(dst)) { goto fail2; }
+    /* Both cnodes should point to valid objects in a derive operation */
+    if (! __cap_cnode_is_used(src)) {
+        CAP_ERR("bad source cnode, type = %d", src->type);
+        ret = -EINVAL;
+        goto fail3;
+    }
 
-    /* Check if we're trying to derive from our own cdt_root. Note:
-     * src->cdt_root and dst->cdt_root are guaranteed to point to their uppermost
-     * CDT root because we called __cap_cnode_try_acquire_cdt_root on both
-     * of their CDTs */
+    if (! __cap_cnode_is_used(dst)) {
+        CAP_ERR("bad dest cnode, type = %d", dst->type);
+        ret = -EINVAL;
+        goto fail3;
+    }
+
+    /* Check if we're trying to derive from our own cdt_root. This is just
+     * to avoid infinite looping for locks. We will fail the 
+     * __cap_cnode_try_acquire_cdt_root if both nodes share a cdt_root (because
+     * we'll try and lock twice. */
     if (src->cdt_root == dst->cdt_root) {
-        ret = -1;
+        ret = -EINVAL;
         CAP_ERR("tried to derive from our own root");
         goto fail;
     }
 
+    if (!__cap_cnode_try_acquire_cdt_root(src)) { goto fail3; }
+    if (!__cap_cnode_try_acquire_cdt_root(dst)) { goto fail2; }
+
+
     if (!__cap_cnode_is_root(dst)) { 
-        ret = -1; 
+        ret = -EINVAL; 
         CAP_ERR("tried to add non-root node to a new CDT tree (derive)");
         goto fail; 
     }
@@ -933,12 +799,20 @@ static int __cap_try_derive(struct cnode *src, struct cnode *dst) {
      * parent */
 	list_splice_init(&src->children, &dst->siblings);
 
-    /* Note that is cdt_root is now a sub-root for our children and siblings. */
+    /* Note that cdt_root is now a sub-root for our children and siblings. */
     dst->cdt_root->parent = src->cdt_root;
+
+    /* All of our current cdt_root's children are now dependent on the new 
+     * cdt_root */
+    src->cdt_root->refcount += dst->cdt_root->refcount;
+
+    /* Decref from our old root, this is why we skip releasing dst's cdt_root */
+    __cap_cdt_root_decref(dst->cdt_root);
+
     /* Make our cdt_root point to the real cdt_root */
     dst->cdt_root = src->cdt_root;
 
-    ret = 1;
+    ret = 1; goto fail2;
 fail:
     __cap_cnode_release_cdt_root(dst);
 fail2:
@@ -947,216 +821,109 @@ fail3:
     return ret;
 }
 
-int cap_derive(struct cspace *cspacesrc, cptr_t c_src,
-               struct cspace *cspacedst, cptr_t c_dst) {
-	struct cnode *cnodesrc, *cnodedst;
-	int done;
-	int ret;
+static int __cap_try_grant(struct cnode *src, struct cnode *dst) {
+    int ret;
+    if (!__cap_cnode_is_used(src)) {
+        CAP_ERR("bad source cnode, type = %d", src->type);
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    if (!__cap_cnode_is_free(dst)) {
+        CAP_ERR("bad dest cnode, type = %d", dst->type);
+        ret = -EINVAL;
+        goto fail;
+    }
+
 	/*
-	 * Fail for null
+	 * Try to lock the cdt containing source cnode (dest cnode should
+	 * not be in a cdt)
 	 */
-	if (cptr_is_null(c_src) || cptr_is_null(c_dst)) {
-		CAP_ERR("trying to grant with a null cptr");
-		return -EINVAL;
-	}
+    if (!__cap_cnode_try_acquire_cdt_root(src)) { ret = 0; goto fail; }
+
 	/*
-	 * Fail if source and dest cspaces have different
-	 * type systems. (It doesn't make sense to insert an
-	 * object of an unregistered type in the dest cspace.)
-	 *
-	 * XXX: We don't do this under a lock, since, for now,
-	 * a cspace's type system cannot change after it is
-	 * created.
+	 * Add dest cnode to source's children in cdt
 	 */
-	if (cspacesrc->ts != cspacedst->ts) {
-		CAP_ERR("source and dest cspaces have different type systems");
-		return -EINVAL;
-	}
-	/*
-	 * This entire thing has to go in a loop - we need to release
-	 * the lock on (at least) the source cnode and try again until we can 
-	 * lock the cdt containing the source cnode.
-	 */
-	do {
-		/*
-		 * Look up source
-		 */
-		ret = __cap_cnode_get(cspacesrc, c_src, false, &cnodesrc);
-		if (ret) {
-			CAP_ERR("couldn't get source cnode");
-			goto fail1;
-		}
-		/*
-		 * Look up dest
-		 *
-		 * XXX: It may be possible to get a deadlock here:
-		 *
-		 *   Thread 1: lcd_cap_grant(cspace1, cptr1, cspace2, cptr2)
-		 *
-		 *   Thread 2: lcd_cap_grant(cspace2, cptr2, cspace1, cptr1)
-		 *
-		 * But perhaps not ... Since grant happens during send/recv,
-		 * this would mean thread1 would have to be a sender and 
-		 * receiver at the same time, which shouldn't be allowed.
-		 */
-		ret = __cap_cnode_get(cspacedst, c_dst, true, &cnodedst);
-		if (ret) {
-			CAP_ERR("couldn't get dest cnode");
-			goto fail2;
-		}
+	list_add(&dst->siblings, &dst->children);
 
-        /* Both cnodes should point to valid objects in a derive operation */
-		if (! __cap_cnode_is_used(cnodesrc)) {
-			CAP_ERR("bad source cnode, type = %d", cnodesrc->type);
-			ret = -EINVAL;
-			goto fail3;
-		}
-		if (! __cap_cnode_is_used(cnodedst)) {
-			CAP_ERR("bad dest cnode, type = %d", cnodedst->type);
-			ret = -EINVAL;
-			goto fail3;
-		}
+    __cap_cnode_release_cdt_root(src);
 
-		done = __cap_try_derive(cnodesrc, cnodedst);
-        if (done == -EINVAL) {
-            ret = -EINVAL;
-            goto fail3;
-        }
+    dst->type = src->type;
+    dst->object = src->object;
+    dst->cspace = src->cspace;
+    dst->cdt_root = src->cdt_root;
 
-		/*
-		 * Release both cnodes
-		 */
-		cap_cnode_put(cnodedst);
-		cap_cnode_put(cnodesrc);
+    ret = 1;
 
-		if (!done) {
-			/*
-			 * Someone is trying to use the cdt; wait 1 ms for
-			 * them to finish.
-			 */
-			msleep(1);
-		}
-	} while (!done);
-
-	return 0;
-
- fail3:
-	cap_cnode_put(cnodedst);
- fail2:
-	cap_cnode_put(cnodesrc);
- fail1:
-	return ret;
+fail:
+    return ret;
 }
 
-int cap_grant(struct cspace *cspacesrc, cptr_t c_src,
-			  struct cspace *cspacedst, cptr_t c_dst) {
-	struct cnode *cnodesrc, *cnodedst;
-	int done;
-	int ret;
-
-	/*
-	 * Fail for null
-	 */
-	if (cptr_is_null(c_src) || cptr_is_null(c_dst)) {
-		CAP_ERR("trying to grant with a null cptr");
-		return -EINVAL;
-	}
-
-	/*
-	 * This entire thing has to go in a loop - we need to release
-	 * the lock on (at least) the source cnode and try again until we can 
-	 * lock the cdt containing the source cnode.
-	 */
-	do {
-		/*
-		 * Look up source
-		 */
-		ret = __cap_cnode_get(cspacesrc, c_src, false, &cnodesrc);
-		if (ret) {
-			CAP_ERR("couldn't get source cnode");
-			goto fail1;
-		}
-		/*
-		 * Look up dest
-		 *
-		 * XXX: It may be possible to get a deadlock here:
-		 *
-		 *   Thread 1: lcd_cap_grant(cspace1, cptr1, cspace2, cptr2)
-		 *
-		 *   Thread 2: lcd_cap_grant(cspace2, cptr2, cspace1, cptr1)
-		 *
-		 * But perhaps not ... Since grant happens during send/recv,
-		 * this would mean thread1 would have to be a sender and 
-		 * receiver at the same time, which shouldn't be allowed.
-		 */
-		ret = __cap_cnode_get(cspacedst, c_dst, true, &cnodedst);
-		if (ret) {
-			CAP_ERR("couldn't get dest cnode");
-			goto fail2;
-		}
-		/*
-		 * Make sure source is neither invalid, free, or a cnode, and
-		 * dest is free.
-		 */
-		if (cnodesrc->type == CAP_TYPE_FREE ||
-		    cnodesrc->type == CAP_TYPE_INVALID ||
-		    cnodesrc->type == CAP_TYPE_CNODE) {
-			CAP_ERR("bad source cnode, type = %d", cnodesrc->type);
-			ret = -EINVAL;
-			goto fail3;
-		}
-		if (cnodedst->type != CAP_TYPE_FREE) {
-			CAP_ERR("bad dest cnode, type = %d", cnodedst->type);
-			ret = -EINVAL;
-			goto fail3;
-		}
-		/*
-		 * Try to grant
-		 */
-		done = try_grant(cspacedst, cnodesrc, cnodedst);
-
-		/*
-		 * Release both cnodes
-		 */
-		cap_cnode_put(cnodedst);
-		cap_cnode_put(cnodesrc);
-
-		if (!done) {
-			/*
-			 * Someone is trying to use the cdt; wait 1 ms for
-			 * him to finish.
-			 */
-			msleep(1);
-		}
-
-	} while (!done);
-
-	return 0;
-
- fail3:
-	cap_cnode_put(cnodedst);
- fail2:
-	cap_cnode_put(cnodesrc);
- fail1:
-	return ret;
+/*
+ * Mark cnode as free, null out fields.
+ *
+ * XXX: We could possibly free up the cnode table if all of its cnodes
+ * are free. For now, they just hang around and will be freed when
+ * the whole cspace is torn down.
+ */
+static void __cap_cnode_mark_free(struct cnode * cnode) {
+	cnode->type = CAP_TYPE_FREE;
+	cnode->object = NULL;
+	cnode->cdt_root = NULL;
+	cnode->metadata = NULL;
 }
 
-static int try_revoke(struct cspace *cspace, struct cnode *cnode)
+/**
+ * Tries to lock cdt and remove cnode from it. Returns non-zero if 
+ * cnode successfully deleted.
+ */
+static int __cap_try_delete(struct cnode *cnode)
 {
+    if (! __cap_cnode_is_used(cnode)) {
+        CAP_ERR("bad cnode, type = %d", cnode->type);
+        return -EINVAL;
+    }
+
+	/*
+	 * Try to lock the cdt
+	 */
+    if (!__cap_cnode_try_acquire_cdt_root(cnode)) { return 0; }
+
+    /* Actually remove from the CDT. The CDT is unlocked and nulled in that
+     * function. */
+    __cap_cdt_remove(cnode);
+
+	/* Order of what follows is important */
+
+	/*
+	 * Update microkernel state to reflect rights change (e.g., if we're
+	 * deleting a cnode for an endpoint, we need to ensure the lcd isn't
+	 * in the endpoint's queues).
+	 */
+    __cap_notify_delete(cnode);
+
+    __cap_cnode_mark_free(cnode);
+
+	/*
+	 * Signal we are done
+	 */
+	return 1;
+}
+
+static int __cap_try_revoke(struct cnode *cnode)
+{
+    if (! __cap_cnode_is_used(cnode)) {
+        CAP_ERR("bad cnode, type = %d", cnode->type);
+        return -EINVAL;
+    }
+
 	struct cnode *child;
-	struct cdt_root_node *cdt_root;
 	int ret;
+
 	/*
 	 * Try to lock the cdt containing cnode
 	 */
-	if (!cap_mutex_trylock(&cnode->cdt_root->lock)) {
-		/*
-		 * Tell caller to retry
-		 */
-		return 0;
-	}
-
-	cdt_root = cnode->cdt_root;
+    if (!__cap_cnode_try_acquire_cdt_root(cnode)) { return 0; }
 
 	/*
 	 * Do a depth-first revoke on cnode's ancestors. If e.g. a child
@@ -1192,49 +959,159 @@ static int try_revoke(struct cspace *cspace, struct cnode *cnode)
 		 */
 		ret = cap_mutex_lock_interruptible(&child->lock);
 		if (ret) {
-			CAP_ERR("interrupted");
+			CAP_ERR("interrupted on cnode");
 			goto fail1;
 		}
 		/*
-		 * If the child is in the cdt, its type should match cnode's
-		 * type (it shouldn't be invalid, free, or a cnode).
+		 * If the child is in the cdt, it shouldn't be invalid, 
+         * free, or a cnode.
 		 */
-		CAP_BUG_ON(child->type != cnode->type);
+		CAP_BUG_ON(!__cap_cnode_is_used(child));
+
+        /* We need to update the cdt_root of this child before we call
+         * cap_cdt_remove_no_unlock because we never called
+         * __cap_cnode_try_acquire_cdt_root. We also have to call fixup to
+         * make sure intermediate root node's reference counts are updated
+         * properly. */
+        ret = __cap_cnode_fixup_cdt_root_trusted_root(cnode->cdt_root, child);
+        if (ret) {
+			CAP_ERR("interrupted on fixup");
+			goto fail1;
+        }
+
 		/*
-		 * Delete from cdt. 
+		 * Delete from cdt. Don't drop the CDT lock.
 		 */
-        __cap_cdt_root_remove(child, cdt_root);
+        __cap_cdt_remove_no_unlock(child);
+
 		/*
 		 * Update microkernel state to reflect rights change 
 		 */
-		cap_notify_revocation(child->cspace, cnode);
-		/*
-		 * Mark cnode as free, null out fields.
-		 */
-		child->type = CAP_TYPE_FREE;
-		child->object = NULL;
-		child->cdt_root = NULL;
-		child->metadata = NULL;
+        __cap_notify_delete(child);
+
+        __cap_cnode_mark_free(child);
+
 		/*
 		 * Unlock child
 		 */
 		cap_mutex_unlock(&child->lock);
 	}
 
-	/*
-	 * Unlock cdt
-	 */
-	cap_mutex_unlock(&cnode->cdt_root->lock);
+    __cap_cnode_release_cdt_root(cnode);
+
 	/*
 	 * Signal we are done
 	 */
-	return 1;
+	ret = 1;
  fail1:
 	return ret;
 }
 
-int cap_revoke(struct cspace *cspace, cptr_t c)
-{
+
+
+/* Do some operation on a pair of cnodes, the `op` function should have the following
+ * contract:
+ *      - If the operation cannot currently be completed and should be
+ *        retried (i.e., couldn't acquire CDT) return 0.
+ *      - If the operation completes successfully, return 1.
+ *      - If the operation fails irrecoverably, return a negative value that
+ *        will then be returned from this function.
+ * If the operation completes successfully, 1 is returned. 'op_name' is used
+ * in error messages. */
+int __cap_cnode_binop(struct cspace *cspace_src, cptr_t c_src,
+                      struct cspace *cspace_dst, cptr_t c_dst,
+                      char * op_name,
+                      int (*op)(struct cnode *src, struct cnode *dst)) {
+    struct cnode *src, *dst;
+    int ret;
+
+	/*
+	 * Fail for null
+	 */
+	if (cptr_is_null(c_src) || cptr_is_null(c_dst)) {
+		CAP_ERR("trying to \"%s\" with a null cptr", op_name);
+		return -EINVAL;
+	}
+
+	/*
+	 * Fail if source and dest cspaces have different
+	 * type systems. (It doesn't make sense to insert an
+	 * object of an unregistered type in the dest cspace.)
+	 *
+	 * XXX: We don't do this under a lock, since, for now,
+	 * a cspace's type system cannot change after it is
+	 * created.
+	 */
+	if (cspace_src->ts != cspace_dst->ts) {
+		CAP_ERR("source and dest cspaces have different type systems");
+		return -EINVAL;
+	}
+
+	/*
+	 * This entire thing has to go in a loop - we need to release
+	 * the lock on (at least) the source cnode and try again until we can 
+	 * lock the cdt containing the source cnode.
+	 */
+	do {
+		/*
+		 * Look up source
+		 */
+		ret = __cap_cnode_get(cspace_src, c_src, false, &src);
+		if (ret) {
+			CAP_ERR("couldn't get source cnode");
+			goto fail1;
+		}
+		/*
+		 * Look up dest
+		 *
+		 * XXX: It may be possible to get a deadlock here:
+		 *
+		 *   Thread 1: lcd_cap_grant(cspace1, cptr1, cspace2, cptr2)
+		 *
+		 *   Thread 2: lcd_cap_grant(cspace2, cptr2, cspace1, cptr1)
+		 *
+		 * But perhaps not ... Since grant happens during send/recv,
+		 * this would mean thread1 would have to be a sender and 
+		 * receiver at the same time, which shouldn't be allowed.
+		 */
+		ret = __cap_cnode_get(cspace_dst, c_dst, true, &dst);
+		if (ret) {
+			CAP_ERR("couldn't get dest cnode");
+			goto fail2;
+		}
+
+		ret = op(src, dst);
+        if (ret < 0) { goto fail3; }
+
+		/*
+		 * Release both cnodes
+		 */
+		cap_cnode_put(dst);
+		cap_cnode_put(src);
+
+		if (!ret) {
+            /* Op wants us to try again later; wait 1 ms. */
+			msleep(1);
+		}
+	} while (!ret);
+
+	return 0;
+
+ fail3:
+	cap_cnode_put(dst);
+ fail2:
+	cap_cnode_put(src);
+ fail1:
+	return ret;
+}
+
+/* perform a unary operation over a cptr in the given cspace. The given
+ * function 'op' will be called with the cnode that is pointed to by the given
+ * cptr. The protocol for this function is described in the comment
+ * above __cap_cnode_binop. 'op_name' is used for error messages. */
+int __cap_cnode_unop(struct cspace *cspace, cptr_t c,
+                     char * op_name,
+                     int (*op)(struct cnode *c)) {
 	struct cnode *cnode;
 	int ret;
 
@@ -1242,7 +1119,7 @@ int cap_revoke(struct cspace *cspace, cptr_t c)
 	 * Fail for null
 	 */
 	if (cptr_is_null(c)) {
-		CAP_ERR("trying to delete null cptr");
+		CAP_ERR("trying to %s null cptr", op_name);
 		return -EINVAL;
 	}
 
@@ -1251,29 +1128,16 @@ int cap_revoke(struct cspace *cspace, cptr_t c)
 	 * cnode and keep trying until we can lock the cdt that contains it.
 	 */
 	do {
-		/*
-		 * Try to get parent cnode
-		 */
 		ret = cap_cnode_get(cspace, c, &cnode);
 		if (ret) {
-			CAP_ERR("couldn't get parent cnode");
+			CAP_ERR("couldn't get cnode");
 			goto fail1;
 		}
-		/*
-		 * Check if cnode is neither invalid, free, nor a cnode (must
-		 * contain a capability to a microkernel object)
-		 */
-		if (cnode->type == CAP_TYPE_FREE ||
-		    cnode->type == CAP_TYPE_INVALID ||
-		    cnode->type == CAP_TYPE_CNODE) {
-			CAP_ERR("cannot revoke on cnode type %d", cnode->type);
-			ret = -EINVAL;
-			goto fail2;
-		}
-		/*
-		 * Try to do full recursive revoke
-		 */
-		ret = try_revoke(cspace, cnode);
+
+        /* Do the op, if we get a fail code, exit the loop. */
+        ret = op(cnode);
+        if (ret < 0) { goto fail2; }
+
 		/*
 		 * Release cnode
 		 */
@@ -1289,7 +1153,7 @@ int cap_revoke(struct cspace *cspace, cptr_t c)
 
 	} while (!ret);
 
-	return (ret < 0 ? ret : 0);
+    return ret;
 
  fail2:
 	cap_cnode_put(cnode);
@@ -1297,8 +1161,29 @@ int cap_revoke(struct cspace *cspace, cptr_t c)
 	return ret;
 }
 
-static void cnode_tear_down(struct cnode *cnode, struct cspace *cspace)
+int cap_derive(struct cspace *cspacesrc, cptr_t c_src,
+               struct cspace *cspacedst, cptr_t c_dst) {
+    return __cap_cnode_binop(cspacesrc, c_src, cspacedst, c_dst,
+                             "cap_derive", __cap_try_derive);
+}
+
+int cap_grant(struct cspace *cspacesrc, cptr_t c_src,
+			  struct cspace *cspacedst, cptr_t c_dst) {
+    return __cap_cnode_binop(cspacesrc, c_src, cspacedst, c_dst,
+                             "cap_grant", __cap_try_grant);
+}
+
+void cap_delete(struct cspace *cspace, cptr_t c) {
+    __cap_cnode_unop(cspace, c, "cap_delete", __cap_try_delete);
+}
+
+int cap_revoke(struct cspace *cspace, cptr_t c) {
+    return __cap_cnode_unop(cspace, c, "cap_revoke", __cap_try_revoke);
+}
+
+static void __cap_cnode_tear_down(struct cnode *cnode, struct cspace *cspace)
 {
+
 	int ret;
 	int done;
 
@@ -1311,15 +1196,18 @@ static void cnode_tear_down(struct cnode *cnode, struct cspace *cspace)
 			CAP_ERR("interrupted, skipping this cnode");
 			goto out1;
 		}
+
 		/*
 		 * If the cnode is already marked as free, just return.
 		 */
 		if (cnode->type == CAP_TYPE_FREE)
 			goto out2;
-		/*
-		 * Delete the cnode
-		 */
-		done = try_delete_cnode(cspace, cnode);
+
+        done = __cap_try_delete(cnode);
+        if (done < 0) {
+            CAP_ERR("try_delete_cnode failed! code=%d", done);
+            goto out2;
+        }
 
 		/*
 		 * Release cnode
@@ -1354,7 +1242,7 @@ static void cnode_table_tear_down(struct cnode_table *t, struct cspace *cspace)
 	 */
 	for (i = 0; i < (CAP_CSPACE_CNODE_TABLE_SIZE >> 1); i++) {
 		cnode = &t->cnode[i];
-		cnode_tear_down(cnode, cspace);
+		__cap_cnode_tear_down(cnode, cspace);
 	}
 
 	return;

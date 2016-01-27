@@ -73,8 +73,15 @@ struct cnode;
 
 struct cap_type_ops {
 	char *name;
-	int (*delete)(struct cspace *cspace, struct cnode *cnode, void *object);
-	int (*revoke)(struct cspace *cspace, struct cnode *cnode, void *object);
+    /* Invoked when a cnode is deleted. The cptr, cspace, and object associated
+     * with this cnode can obtained using the cnode accessor functions. */
+    int (*delete)(struct cnode *cnode);
+    /* Invoked when a cnode is involed in a grant operation. */
+    int (*grant)(struct cnode *src, struct cnode *dst);
+    /* Invoked when a cnode is the source in a cap_derive operation. */
+    int (*derive_src)(struct cnode *src, struct cnode *dst);
+    /* Invoked when a cnode is the destination in a cap_derive operation. */
+    int (*derive_dst)(struct cnode *src, struct cnode *dst);
 };
 
 /* CAP TYPE SYSTEMS -------------------------------------------------- */
