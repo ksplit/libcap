@@ -15,7 +15,7 @@
  * Revoke [Done]
  *
  * Test execution:
- *   ./<obj>/test/user/multi_thrd_cap
+ *	 ./<obj>/test/user/multi_thrd_cap
  *
  * Modification:
  * CSPACE count : 2
@@ -35,21 +35,24 @@
 #include "libcap_internal.h"
 #include "libcap_types.h"
 
-int stringobj_delete(struct cspace *cspace, struct cnode *cnode, void *object)
+int stringobj_delete(struct cnode *cnode)
 {
-	CAP_DEBUG(0, "object = '%s'\n", (char *)object);
+	CAP_DEBUG(0, "object = '%s'\n", (char *)cap_cnode_object(cnode));
 }
 
-int stringobj_revoke(struct cspace *cspace, struct cnode *cnode, void *object)
+int stringobj_bin(struct cnode *src, struct cnode *cnode)
 {
-	CAP_DEBUG(0, "object = '%s'\n", (char *)object);
+	CAP_DEBUG(0, "object_a = '%s', object_b = '%s'\n", 
+				 (char *)cap_cnode_object(src), (char *) cap_cnode_object(src));
 }
 
 int stringobj_type = 0;
 struct cap_type_ops stringobj_ops = {
 	.name = "stringobj",
 	.delete = stringobj_delete,
-	.revoke = stringobj_revoke,
+	.grant = stringobj_bin,
+	.derive_src = stringobj_bin,
+	.derive_dst = stringobj_bin,
 };
 
 #define BASE_THREAD_COUNT 10
@@ -124,14 +127,14 @@ void *thread1_func(void *arg)
 
 	cap_mutex_lock(&global_user_lock);
 	if (track < SLOTS) {
-	    slot = track++;
+		slot = track++;
 	}
 	cap_mutex_unlock(&global_user_lock);
 
 	if (track < SLOTS) {
 		sslot_arr[slot] = sslot;
-	    	printf("Thread[%d] Inserted: 0x%lx in slot %d\n",
-		       *i, cptr_val(sslot), slot);
+			printf("Thread[%d] Inserted: 0x%lx in slot %d\n",
+			   *i, cptr_val(sslot), slot);
 	}
 
  fail:
@@ -147,20 +150,20 @@ void *thread_revoke(void* arg)
 	printf("Revoke called\n");
 
 	if ((THREAD_COUNT - 4) < n)
-	    n = THREAD_COUNT - 4;
+		n = THREAD_COUNT - 4;
 
 	while (i < n) {
 		printf("Thread Revoke : slot %d 0x%lx\n",
-		       i, cptr_val(sslot_arr[i]));
+			   i, cptr_val(sslot_arr[i]));
 		/* Wait for both insert and grant before revoke */
 		if (!revoke_signal[i]) {
 			printf("Thread Revoke : get on %i not done yet, stalling...\n",
 				i);
 			while (!revoke_signal[i]) {
-			    STALL();
+				STALL();
 			}
 			printf("Thread Revoke : unstalled cptr slot %i (0x%lx,0x%lx)\n",
-			       i,cptr_val(sslot_arr[i]),cptr_val(dslot_arr[i]));
+				   i,cptr_val(sslot_arr[i]),cptr_val(dslot_arr[i]));
 		}
 		ret = cap_revoke(scsp, sslot_arr[i]);
 		if (ret < 0)
@@ -183,7 +186,7 @@ void *thread_grant(void *arg) {
 	printf("Grant called\n");
 
 	if ((THREAD_COUNT - 4) < n)
-	    n = THREAD_COUNT - 4;
+		n = THREAD_COUNT - 4;
 
 	while (i < n) {
 		cptr_t dslot;
@@ -193,12 +196,12 @@ void *thread_grant(void *arg) {
 		}
 		if (cptr_is_null(sslot_arr[i])) {
 			printf("Thread Grant : null cptr slot %d (0x%lx), stalling...\n",
-			       i,cptr_val(sslot_arr[i]));
+				   i,cptr_val(sslot_arr[i]));
 			while (cptr_is_null(sslot_arr[i])) {
-			    STALL();
+				STALL();
 			}
 			printf("Thread Grant : unstalled cptr slot %d (0x%lx)\n",
-			       i,cptr_val(sslot_arr[i]));
+				   i,cptr_val(sslot_arr[i]));
 		}
 		ret = cap_grant(scsp, sslot_arr[i], dcsp, dslot);
 		if (ret < 0) {
@@ -217,17 +220,17 @@ void *thread_get(void * arg) {
 	int n = 200;
 
 	if ((THREAD_COUNT - 4) < n)
-	    n = THREAD_COUNT - 4;
+		n = THREAD_COUNT - 4;
 
 	while (i < n) {
 		if (cptr_is_null(dslot_arr[i])) {
 			printf("Thread Get : null cptr slot %d, stalling...\n",
-			       i);
+				   i);
 			while (cptr_is_null(dslot_arr[i])) {
-			    STALL();
+				STALL();
 			}
 			printf("Thread Get : unstalled cptr slot %d\n",
-			       i);
+				   i);
 		}
 		ret = cap_cnode_verify(dcsp, dslot_arr[i]);
 		if (ret < 0)
@@ -312,21 +315,21 @@ int main()
 	for (i = 0; i < THREAD_COUNT; i++) {
 		if (i == 3 * THREAD_MULT) {
 			ret = pthread_create(&threads[i], NULL, thread_grant,
-					     (void *) &i);
+						 (void *) &i);
 		}
 		else if (i == 5 * THREAD_MULT) {
 			ret = pthread_create(&threads[i], NULL, thread_revoke,
-					     (void *) &i);
+						 (void *) &i);
 		}
 		else if (i == 9 * THREAD_MULT) {
 			ret = pthread_create(&threads[i], NULL, thread_get,
-					     (void *) &i);
+						 (void *) &i);
 		}
 		else {
 			it = malloc(sizeof(*it));
 			*it = i;
 			ret = pthread_create(&threads[i], NULL, thread1_func,
-					     (void *)it);
+						 (void *)it);
 		}
 		if (ret < 0)
 			printf("Error creating thread [%d]\n", i);
