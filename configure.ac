@@ -1,7 +1,7 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
-AC_PREREQ([2.69])
+AC_PREREQ([2.68])
 AC_INIT([libcap], [0.1])
 AC_CONFIG_SRCDIR([src/common/cptr_cache.c])
 AC_CONFIG_AUX_DIR(autoconf)
@@ -250,7 +250,7 @@ AC_CHECK_HEADERS([stdint.h stdlib.h string.h unistd.h])
 # Checks for types
 # --------------------------------------------------
 
-AC_CHECK_HEADER_STDBOOL
+#AC_CHECK_HEADER_STDBOOL
 AC_TYPE_SIZE_T
 AC_TYPE_UINT8_T
 AC_CHECK_SIZEOF([unsigned long])
