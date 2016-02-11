@@ -1231,7 +1231,6 @@ void cap_destroy_cspace(struct cspace *cspace)
 EXPORT_SYMBOL(cap_init);
 EXPORT_SYMBOL(cap_fini);
 EXPORT_SYMBOL(cap_init_cspace_with_type_system);
-EXPORT_SYMBOL(cap_register_private_type);
 EXPORT_SYMBOL(cap_alloc_cspace);
 EXPORT_SYMBOL(cap_free_cspace);
 EXPORT_SYMBOL(cap_destroy_cspace);
