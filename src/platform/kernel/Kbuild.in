@@ -18,4 +18,4 @@ lib-y += \
 	$(COMMON_SRCS:.c=.o)
 
 # Pass along include directories from the Automake file
-ccflags-y += $(AM_CPPFLAGS)
+ccflags-y += $(CFLAGS) $(AM_CPPFLAGS)

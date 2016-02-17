@@ -18,6 +18,7 @@ AM_CPPFLAGS = \
 	$(KERNEL_INCLUDES) \
 	$(GLIB_INCLUDES)
 
+
 COMMON_SRCS = \
 	common/cap.c \
 	common/cptr_cache.c \
