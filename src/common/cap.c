@@ -5,6 +5,7 @@
  */
 
 #ifdef LCD_DOMAINS
+#error "IN HERE"
 #include <lcd_config/pre_hook.h>
 #endif
 

@@ -11,7 +11,7 @@
 # This single line of magic makes it so we can do an out of src tree
 # build. It has to do with how and where this Kbuild file is included
 # in the kernel build system.
-src = @abs_top_srcdir@/src/platform/kernel
+src = @abs_top_srcdir@/src
 
 # Sources that make up library
 lib-y += \

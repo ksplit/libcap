@@ -336,10 +336,10 @@ AC_CONFIG_FILES(
 
   src/platform/Makefile
   src/platform/kernel/Makefile
+  src/Kbuild:src/platform/kernel/Kbuild.in
   src/platform/kernel/src/Makefile
   src/platform/kernel/module/Makefile
   src/platform/kernel/module/Kbuild
-  src/platform/kernel/Kbuild
   src/platform/kernel/include/Makefile
   src/platform/kernel/test/Makefile
 

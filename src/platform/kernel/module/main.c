@@ -23,4 +23,4 @@ static void __exit cap_fini_module(void)
 
 module_init(cap_init_module);
 module_exit(cap_fini_module);
-MODULE_LICENSE("GPLv2");
+MODULE_LICENSE("GPL");

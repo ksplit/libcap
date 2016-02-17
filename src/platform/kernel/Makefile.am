@@ -19,13 +19,13 @@ AM_CPPFLAGS = \
 	$(GLIB_INCLUDES)
 
 COMMON_SRCS = \
-	../../common/cap.c \
-	../../common/cptr_cache.c \
-	../../common/type_system.c
+	common/cap.c \
+	common/cptr_cache.c \
+	common/type_system.c
 
 export AM_CPPFLAGS COMMON_SRCS
 
-LIBCAP_KBUILD=$(PWD)
+LIBCAP_KBUILD=@abs_top_builddir@/src
 LIBCAP_KERNEL_MODULE_KBUILD=$(PWD)/module
 
 # Automake if's aren't as powerful as GNU Make's (partly since Automake
@@ -51,7 +51,7 @@ all-module: all-lib-cp
 	$(MAKE) -C $(KDIR) M=$(LIBCAP_KERNEL_MODULE_KBUILD) modules
 
 all-lib-cp: all-lib
-	cp lib.a libcap.a
+	cp $(LIBCAP_KBUILD)/lib.a $(LIBCAP_KBUILD)/libcap.a
 
 all-lib:
 	$(MAKE) -C $(KDIR) M=$(LIBCAP_KBUILD)
@@ -64,7 +64,7 @@ install-libcap-module: install-setup-dir
 	cp module/libcap.ko $(DESTDIR)$(libdir)
 
 install-libcap: install-setup-dir
-	cp libcap.a $(DESTDIR)$(libdir)
+	cp $(LIBCAP_KBUILD)/libcap.a $(DESTDIR)$(libdir)
 
 install-setup-dir:
 	$(MKDIR_P) $(DESTDIR)$(libdir)
@@ -82,7 +82,7 @@ clean-module:
 
 clean-lib:
 	$(MAKE) -C $(KDIR) M=$(LIBCAP_KBUILD) clean
-	rm -f libcap.a
+	rm -f $(LIBCAP_KBUILD)/libcap.a
 
 .PHONY: all-module all-lib all-lib-cp do-modules-install modules_install \
 	clean-module clean-lib install-headers uninstall-headers \

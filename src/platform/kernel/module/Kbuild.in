@@ -15,10 +15,10 @@ src = @abs_top_srcdir@/src/platform/kernel/module
 obj-m = libcap.o
 
 # Sources that make up module
-libcap-objs += main.o
+libcap-objs += main.o 
 
 # Link with libcap.a
-libcap-objs += ../libcap.a
+libcap-objs += ../../../libcap.a
 
 # Pass along include directories from the Automake file
 ccflags-y += $(AM_CPPFLAGS)
