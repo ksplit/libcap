@@ -6,8 +6,16 @@
  *   Pankaj Kumar <pankajk@cs.utah.edu>
  */
 
+#ifdef LCD_DOMAINS
+#include <lcd_config/pre_hook.h>
+#endif
+
 #include <libcap.h>
 #include <libcap_internal.h>
+
+#ifdef LCD_DOMAINS
+#include <lcd_config/post_hook.h>
+#endif
 
 int cptr_cache_alloc(struct cptr_cache **out)
 {

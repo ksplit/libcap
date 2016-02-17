@@ -3,8 +3,17 @@
  * 
  * Copyright: University of Utah
  */
+
+#ifdef LCD_DOMAINS
+#include <lcd_config/pre_hook.h>
+#endif
+
 #include <libcap.h>
 #include <libcap_internal.h>
+
+#ifdef LCD_DOMAINS
+#include <lcd_config/post_hook.h>
+#endif
 
 #define CAP_TYPE_NUM_BUILTIN CAP_TYPE_FIRST_NONBUILTIN
 
