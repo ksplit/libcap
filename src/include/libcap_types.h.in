@@ -39,6 +39,10 @@ typedef struct {
 
 /* CPTR CACHEs -------------------------------------------------- */
 
+#ifndef CPTR_CACHE_LOCK_PADDING_SIZE
+#define CPTR_CACHE_LOCK_PADDING_SIZE 0
+#endif
+
 /* 
  * NOTE: This is part of the public interface so that it can be
  * allocated statically (e.g., as a global). This is needed for
@@ -50,6 +54,10 @@ struct cptr_cache {
 	 * lock
 	 */
 	cap_mutex_t lock;
+	/*
+	 * Padding
+	 */
+	char lock_padding[CPTR_CACHE_LOCK_PADDING_SIZE];
 	/* 
 	 * bmaps
 	 *
