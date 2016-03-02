@@ -39,7 +39,7 @@ static inline int __cap_mutex_lock(cap_mutex_t *mutex)
 
 static inline int __cap_mutex_trylock(cap_mutex_t *mutex)
 {
-	return !mutex_trylock(mutex);
+	return mutex_trylock(mutex);
 }
 
 static inline int __cap_mutex_lock_interruptible(cap_mutex_t *mutex)
