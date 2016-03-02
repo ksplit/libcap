@@ -643,7 +643,6 @@ static int try_delete_cnode(struct cspace *cspace, struct cnode *cnode)
 {
 	int last_node;
 	struct cdt_root_node *cdt_node;
-
 	/*
 	 * Try to lock the cdt
 	 */
