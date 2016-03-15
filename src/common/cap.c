@@ -711,12 +711,12 @@ static bool __cap_cnode_try_acquire_cdt_root(struct cnode *c) {
     struct cdt_root_node * old_root = c->cdt_root;
     struct cdt_root_node * root = old_root;
     /* Always have to lock our current root, even if it's not the "real" root. */
-    if (!cap_mutex_trylock(&root->lock)) { goto fail; /* old_root = root */ }
+    if (cap_mutex_trylock(&root->lock)) { goto fail; /* old_root = root */ }
     while (root->parent != NULL) {
         old_root = root;
         root = root->parent;
         /* Try and lock our new root (the parent of our current) */
-        if (!cap_mutex_trylock(&root->lock)) { goto fail; }
+        if (cap_mutex_trylock(&root->lock)) { goto fail; }
         /* Update the roots */
         c->cdt_root = root;
         /* don't __cap_cdt_root_incref because the incref happens implicitly on
