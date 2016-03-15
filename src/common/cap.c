@@ -821,6 +821,15 @@ fail3:
     return ret;
 }
 
+static void __cap_try_grant_cnode_copy(struct cnode *src, struct cnode *dst, 
+                                       bool do_list) {
+    dst->type = src->type;
+    dst->object = src->object;
+    dst->cspace = src->cspace;
+    dst->cdt_root = src->cdt_root;
+    if (do_list) { dst->siblings = src->siblings; }
+}
+
 static int __cap_try_grant(struct cnode *src, struct cnode *dst) {
     int ret;
     if (!__cap_cnode_is_used(src)) {
@@ -844,16 +853,30 @@ static int __cap_try_grant(struct cnode *src, struct cnode *dst) {
 	/*
 	 * Add dest cnode to source's children in cdt
 	 */
-	list_add(&dst->siblings, &dst->children);
+	list_add(&dst->siblings, &src->children);
+
+    /* save dst contents in case we need to roll-back */
+    struct cnode _tmp;
+    __cap_try_grant_cnode_copy(dst, &_tmp, true);
+
+    __cap_try_grant_cnode_copy(src, dst, false);
+
+    /* Invoke the grant callback for this cnode type. No additional locking
+     * of the ts is needed because all ts updated are additive. */
+    ret = src->cspace->ts->types[src->type].grant(src, dst);
+
+    if (ret < 0) { /* rollback */
+        /* remove the dst node from the siblings list */
+        list_del(&dst->siblings);
+        /* Fixup everything else from our temporary copy.
+         * XXX: Can't use a memcpy 'cause we need to keep the same 
+         * cnode lock. I'm not sure if copying held locks is OK. */
+        __cap_try_grant_cnode_copy(&_tmp, dst, true);
+    } else {
+        ret = 1;
+    }
 
     __cap_cnode_release_cdt_root(src);
-
-    dst->type = src->type;
-    dst->object = src->object;
-    dst->cspace = src->cspace;
-    dst->cdt_root = src->cdt_root;
-
-    ret = 1;
 
 fail:
     return ret;

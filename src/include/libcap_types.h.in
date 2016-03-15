@@ -74,13 +74,26 @@ struct cnode;
 struct cap_type_ops {
 	char *name;
     /* Invoked when a cnode is deleted. The cptr, cspace, and object associated
-     * with this cnode can obtained using the cnode accessor functions. */
+     * with this cnode can obtained using the cnode accessor functions. 
+     * The operation can be aborted by returning a negative exit status which
+     * will be returned from the cap_X call. 
+     * XXX: Be careful not to overlap exit codes. */
     int (*delete)(struct cnode *cnode);
-    /* Invoked when a cnode is involed in a grant operation. */
+    /* Invoked when a cnode is involed in a grant operation. 'src' corresponds
+     * to the 'src' cptr, and 'dst' corresponds to the 'dst' cptr. See the 
+     * delete callback for interface. */
     int (*grant)(struct cnode *src, struct cnode *dst);
-    /* Invoked when a cnode is the source in a cap_derive operation. */
+    /* This callback is invoked for the 'src' cnode when that cnode is involved
+     * in a 'derive' operation. The 'src' corresponds to the 'src' cptr, and 
+     * the 'dst' corresponds to the 'dst' cptr. See delete callback for 
+     * interface. */
     int (*derive_src)(struct cnode *src, struct cnode *dst);
-    /* Invoked when a cnode is the destination in a cap_derive operation. */
+    /* This callback is invoked for the 'dst' cnode (because its type may be
+     * different from the 'src' cnode and therefore it may have a different
+     * handler) when it is the 'dst' cptr of a 'derive' operation. Note: even
+     * though this callback is invoked on the dst node, the 'src' and 'dst' cnodes
+     * are still semantically related to the 'src' and 'dst' cnodes passed
+     * in the 'cap_derive' call. See the delete callback for interface. */
     int (*derive_dst)(struct cnode *src, struct cnode *dst);
 };
 
