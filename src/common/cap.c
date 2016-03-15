@@ -613,22 +613,29 @@ static struct cap_type_ops * __cap_cnode_type_ops(struct cnode *cnode) {
     return ops;
 }
 
-static void __cap_notify_delete(struct cnode *cnode)
-{
+static int __cap_notify_delete(struct cnode *cnode) {
     struct cap_type_ops * ops = __cap_cnode_type_ops(cnode);
-    if (ops && ops->delete) { ops->delete(cnode); }
+    if (ops && ops->delete) { return ops->delete(cnode); }
+    return 0;
 }
 
-static void __cap_notify_grant(struct cnode *src, struct cnode *dst) {
+static int __cap_notify_grant(struct cnode *src, struct cnode *dst) {
     struct cap_type_ops *ops = __cap_cnode_type_ops(src);
-    if (ops && ops->grant) { ops->grant(src, dst); }
+    if (ops && ops->grant) { return ops->grant(src, dst); }
+    return 0;
 }
 
-static void __cap_notify_derive(struct cnode *src, struct cnode *dst) {
+static int __cap_notify_derive(struct cnode *src, struct cnode *dst) {
     struct cap_type_ops *src_ops = __cap_cnode_type_ops(src);
-    if (src_ops && src_ops->derive_src) { src_ops->derive_src(src, dst); }
+    if (src_ops && src_ops->derive_src) { 
+        int ret = src_ops->derive_src(src, dst);
+        if (ret < 0) { return ret; }
+    }
     struct cap_type_ops *dst_ops = __cap_cnode_type_ops(src);
-    if (dst_ops && dst_ops->derive_dst) { src_ops->derive_dst(src, dst); }
+    if (dst_ops && dst_ops->derive_dst) { 
+        return src_ops->derive_dst(src, dst); 
+    }
+    return 0;
 }
 
 /**
@@ -863,9 +870,10 @@ static int __cap_try_grant(struct cnode *src, struct cnode *dst) {
 
     /* Invoke the grant callback for this cnode type. No additional locking
      * of the ts is needed because all ts updated are additive. */
-    ret = src->cspace->ts->types[src->type].grant(src, dst);
+    ret = __cap_notify_grant(src, dst);
 
     if (ret < 0) { /* rollback */
+        CAP_ERR("grant callback aborted grant. code = %d, type = %d", ret, src->type);
         /* remove the dst node from the siblings list */
         list_del(&dst->siblings);
         /* Fixup everything else from our temporary copy.
@@ -912,10 +920,6 @@ static int __cap_try_delete(struct cnode *cnode)
 	 */
     if (!__cap_cnode_try_acquire_cdt_root(cnode)) { return 0; }
 
-    /* Actually remove from the CDT. The CDT is unlocked and nulled in that
-     * function. */
-    __cap_cdt_remove(cnode);
-
 	/* Order of what follows is important */
 
 	/*
@@ -923,7 +927,16 @@ static int __cap_try_delete(struct cnode *cnode)
 	 * deleting a cnode for an endpoint, we need to ensure the lcd isn't
 	 * in the endpoint's queues).
 	 */
-    __cap_notify_delete(cnode);
+    int ret = __cap_notify_delete(cnode);
+    if (ret < 0) { /* abort delete */
+        CAP_ERR("delete handler aborted delete, code = %d, type = %d", ret, cnode->type);
+        __cap_cnode_release_cdt_root(cnode);
+        return ret;
+    }
+
+    /* Actually remove from the CDT. The CDT is unlocked and nulled in that
+     * function. */
+    __cap_cdt_remove(cnode);
 
     __cap_cnode_mark_free(cnode);
 
