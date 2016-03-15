@@ -464,6 +464,9 @@ static int __cap_cnode_lookup(struct cspace *cspace, cptr_t c, bool alloc,
 		old = new;
 	} while (!ret);
 
+    /* Save the cptr for the cnode if we successfully looked it up. */
+    if (ret >= 0) { (*cnode)->cptr = c; }
+
 	/*
 	 * only return non zero if we had an error
 	 */
@@ -575,7 +578,7 @@ int cap_insert(struct cspace *cspace, cptr_t c, void *object, cap_type_t type)
 	cnode->cspace = cspace;
 	cnode->object = object;
 	cnode->type = type;
-	cnode->cptr = c;
+	//cnode->cptr = c;
 
 	/*
 	 * Set up cdt
@@ -832,7 +835,6 @@ static void __cap_try_grant_cnode_copy(struct cnode *src, struct cnode *dst,
                                        bool do_list) {
     dst->type = src->type;
     dst->object = src->object;
-    dst->cspace = src->cspace;
     dst->cdt_root = src->cdt_root;
     if (do_list) { dst->siblings = src->siblings; }
 }
