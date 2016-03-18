@@ -17,7 +17,9 @@
 #include <lcd_config/post_hook.h>
 #endif
 
-int cptr_cache_alloc(struct cptr_cache **out)
+int 
+LIBCAP_FUNC_ATTR
+cptr_cache_alloc(struct cptr_cache **out)
 {
 	struct cptr_cache *cache;
 	/*
@@ -30,7 +32,9 @@ int cptr_cache_alloc(struct cptr_cache **out)
 	return 0;
 }
 
-void cptr_cache_free(struct cptr_cache *cache)
+void 
+LIBCAP_FUNC_ATTR
+cptr_cache_free(struct cptr_cache *cache)
 {
 	/*
 	 * Free container
@@ -38,7 +42,9 @@ void cptr_cache_free(struct cptr_cache *cache)
 	cap_free(cache);
 }
 
-int cptr_cache_init(struct cptr_cache *cache)
+int 
+LIBCAP_FUNC_ATTR
+cptr_cache_init(struct cptr_cache *cache)
 {
 	int i;
 	unsigned long *bmap;
@@ -64,7 +70,9 @@ int cptr_cache_init(struct cptr_cache *cache)
 	return 0;
 }
 
-void cptr_cache_destroy(struct cptr_cache *cache)
+void 
+LIBCAP_FUNC_ATTR
+cptr_cache_destroy(struct cptr_cache *cache)
 {
 	/* No-op for now */
 }
@@ -89,7 +97,9 @@ static int __cap_alloc_cptr_from_bmap(unsigned long *bmap, int size,
 	return 1;		/* signal we are done */
 }
 
-int cptr_alloc(struct cptr_cache *cptr_cache, cptr_t *free_cptr)
+int 
+LIBCAP_FUNC_ATTR
+cptr_alloc(struct cptr_cache *cptr_cache, cptr_t *free_cptr)
 {
 	int ret;
 	int depth;
@@ -141,7 +151,9 @@ unlock:
 	return ret;
 }
 
-void cptr_free(struct cptr_cache *cptr_cache, cptr_t c)
+void 
+LIBCAP_FUNC_ATTR
+cptr_free(struct cptr_cache *cptr_cache, cptr_t c)
 {
 	unsigned long *bmap;
 	unsigned long bmap_idx;

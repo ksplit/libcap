@@ -36,7 +36,9 @@ static struct cap_type_system global_ts;
  */
 static unsigned long long cspace_id = 0;
 
-int cap_init(void)
+int 
+LIBCAP_FUNC_ATTR
+cap_init(void)
 {
 	int ret;
 	/*
@@ -84,7 +86,9 @@ fail1:
 	return ret;
 }
 
-void cap_fini(void)
+void 
+LIBCAP_FUNC_ATTR
+cap_fini(void)
 {
 	/*
 	 * Destroy cdt cache
@@ -103,7 +107,9 @@ void cap_fini(void)
 }
 
 #ifdef CAP_ENABLE_GLOBAL_TYPES
-cap_type_t cap_register_type(cap_type_t type, const struct cap_type_ops *ops)
+cap_type_t 
+LIBCAP_FUNC_ATTR
+cap_register_type(cap_type_t type, const struct cap_type_ops *ops)
 {
 	return cap_register_private_type(&global_ts, type, ops);
 }
@@ -112,7 +118,9 @@ cap_type_t cap_register_type(cap_type_t type, const struct cap_type_ops *ops)
 /**
  * Allocates a new cdt root node using the cdt cache.
  */
-struct cdt_root_node *get_cdt_root(void)
+struct cdt_root_node *
+LIBCAP_FUNC_ATTR
+get_cdt_root(void)
 {
 	int ret;
 	struct cdt_root_node *cdt_node = NULL;
@@ -131,7 +139,9 @@ struct cdt_root_node *get_cdt_root(void)
 	return cdt_node;
 }
 
-void free_cdt_root(struct cdt_root_node *cdt_node)
+void 
+LIBCAP_FUNC_ATTR
+free_cdt_root(struct cdt_root_node *cdt_node)
 {
 	int ret;
 
@@ -201,7 +211,9 @@ inline void cap_free_cspace(struct cspace *cspace) { cap_free(cspace); }
 /**
  * Initializes the cspace's fields.
  */
-int cap_init_cspace_with_type_system(struct cspace *cspace,
+int 
+LIBCAP_FUNC_ATTR
+cap_init_cspace_with_type_system(struct cspace *cspace,
 				struct cap_type_system *ts)
 {
 	int ret;
@@ -261,7 +273,9 @@ int cap_init_cspace_with_type_system(struct cspace *cspace,
 }
 
 #ifdef CAP_ENABLE_GLOBAL_TYPES
-int cap_init_cspace(struct cspace *cspace)
+int 
+LIBCAP_FUNC_ATTR
+cap_init_cspace(struct cspace *cspace)
 {
 	return cap_init_cspace_with_type_system(cspace, &global_ts);
 }
@@ -487,31 +501,49 @@ static int __cap_cnode_get(struct cspace *cspace, cptr_t c,
 	return ret;
 }
 
-int cap_cnode_get(struct cspace *cspace, cptr_t c, struct cnode **cnode)
+int 
+LIBCAP_FUNC_ATTR
+cap_cnode_get(struct cspace *cspace, cptr_t c, struct cnode **cnode)
 {
 	return __cap_cnode_get(cspace, c, false, cnode);
 }
 
-void cap_cnode_put(struct cnode *cnode)
+void 
+LIBCAP_FUNC_ATTR
+cap_cnode_put(struct cnode *cnode)
 {
 	cap_mutex_unlock(&cnode->lock);
 }
 
-void* cap_cnode_object(struct cnode *cnode) { return cnode->object; }
-cap_type_t cap_cnode_type(struct cnode *cnode) { return cnode->type; }
-struct cspace * cap_cnode_cspace(struct cnode *cnode) { return cnode->cspace; }
+void* 
+LIBCAP_FUNC_ATTR
+cap_cnode_object(struct cnode *cnode) { return cnode->object; }
 
-void* cap_cnode_metadata(struct cnode *cnode)
+cap_type_t 
+LIBCAP_FUNC_ATTR
+cap_cnode_type(struct cnode *cnode) { return cnode->type; }
+
+struct cspace * 
+LIBCAP_FUNC_ATTR
+cap_cnode_cspace(struct cnode *cnode) { return cnode->cspace; }
+
+void* 
+LIBCAP_FUNC_ATTR
+cap_cnode_metadata(struct cnode *cnode)
 {
 	return cnode->metadata;
 }
 
-void cap_cnode_set_metadata(struct cnode *cnode, void *metadata)
+void 
+LIBCAP_FUNC_ATTR
+cap_cnode_set_metadata(struct cnode *cnode, void *metadata)
 {
 	cnode->metadata = metadata;
 }
 
-int cap_cnode_verify(struct cspace *cspace, cptr_t c)
+int 
+LIBCAP_FUNC_ATTR
+cap_cnode_verify(struct cspace *cspace, cptr_t c)
 {
 	struct cnode *cnode;
 	int ret;
@@ -523,9 +555,13 @@ int cap_cnode_verify(struct cspace *cspace, cptr_t c)
 	return ret;
 }
 
-cptr_t cap_cnode_cptr(struct cnode *cnode) { return cnode->cptr; }
+cptr_t 
+LIBCAP_FUNC_ATTR
+cap_cnode_cptr(struct cnode *cnode) { return cnode->cptr; }
 
-int cap_insert(struct cspace *cspace, cptr_t c, void *object, cap_type_t type)
+int 
+LIBCAP_FUNC_ATTR
+cap_insert(struct cspace *cspace, cptr_t c, void *object, cap_type_t type)
 {
 	struct cnode *cnode;
 	int ret;
@@ -711,7 +747,9 @@ static int try_delete_cnode(struct cspace *cspace, struct cnode *cnode)
 	return 1;
 }
 
-void cap_delete(struct cspace *cspace, cptr_t c)
+void 
+LIBCAP_FUNC_ATTR
+cap_delete(struct cspace *cspace, cptr_t c)
 {
 	struct cnode *cnode;
 	int done;
@@ -824,8 +862,10 @@ static int try_grant(struct cspace *cspacedst, struct cnode *cnodesrc,
 	return 1;
 }
 
-int cap_grant(struct cspace *cspacesrc, cptr_t c_src,
-	      struct cspace *cspacedst, cptr_t c_dst)
+int 
+LIBCAP_FUNC_ATTR
+cap_grant(struct cspace *cspacesrc, cptr_t c_src,
+	struct cspace *cspacedst, cptr_t c_dst)
 {
 	struct cnode *cnodesrc, *cnodedst;
 	int done;
@@ -1021,7 +1061,9 @@ static int try_revoke(struct cspace *cspace, struct cnode *cnode)
 	return ret;
 }
 
-int cap_revoke(struct cspace *cspace, cptr_t c)
+int 
+LIBCAP_FUNC_ATTR
+cap_revoke(struct cspace *cspace, cptr_t c)
 {
 	struct cnode *cnode;
 	int ret;
@@ -1189,7 +1231,9 @@ static void cspace_tear_down(struct cspace *cspace)
 	return;
 }
 
-void cap_destroy_cspace(struct cspace *cspace)
+void 
+LIBCAP_FUNC_ATTR
+cap_destroy_cspace(struct cspace *cspace)
 {
 	int ret;
 	/*

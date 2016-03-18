@@ -17,6 +17,10 @@
 #include <libcap_types.h>
 #include <libcap_platform_types.h>
 
+#ifndef LIBCAP_FUNC_ATTR
+#define LIBCAP_FUNC_ATTR
+#endif
+
 /* DEBUGGING ---------------------------------------- */
 
 /* For now, put debug macros in the user-accessible part; convenient. */

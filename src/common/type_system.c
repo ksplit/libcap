@@ -24,7 +24,9 @@ static struct cap_type_ops builtin_cap_types[CAP_TYPE_NUM_BUILTIN] = {
 	{"cnode", NULL, NULL},
 };
 
-int cap_type_system_alloc(struct cap_type_system **ts)
+int 
+LIBCAP_FUNC_ATTR
+cap_type_system_alloc(struct cap_type_system **ts)
 {
 	*ts = cap_zalloc(1, sizeof(**ts));
 	if (!*ts)
@@ -32,7 +34,9 @@ int cap_type_system_alloc(struct cap_type_system **ts)
 	return 0;
 }
 
-int cap_type_system_init(struct cap_type_system *ts)
+int 
+LIBCAP_FUNC_ATTR
+cap_type_system_init(struct cap_type_system *ts)
 {
 	int i;
 	/*
@@ -57,7 +61,9 @@ int cap_type_system_init(struct cap_type_system *ts)
 	return 0;
 }
 
-void cap_type_system_destroy(struct cap_type_system *ts)
+void 
+LIBCAP_FUNC_ATTR
+cap_type_system_destroy(struct cap_type_system *ts)
 {
 	int i;
 	/*
@@ -68,12 +74,16 @@ void cap_type_system_destroy(struct cap_type_system *ts)
 			free(ts->types[i].name);
 }
 
-void cap_type_system_free(struct cap_type_system *ts)
+void 
+LIBCAP_FUNC_ATTR
+cap_type_system_free(struct cap_type_system *ts)
 {
 	cap_free(ts);
 }
 
-cap_type_t cap_register_private_type(struct cap_type_system *ts, 
+cap_type_t 
+LIBCAP_FUNC_ATTR
+cap_register_private_type(struct cap_type_system *ts, 
 			cap_type_t type, const struct cap_type_ops *ops)
 {
 	int i, ret;
