@@ -566,7 +566,7 @@ cap_insert(struct cspace *cspace, cptr_t c, void *object, cap_type_t type)
 	struct cnode *cnode;
 	int ret;
 
-	if (type < CAP_TYPE_FIRST_NONBUILTIN || type >= CAP_TYPE_MAX) {
+	if (type < CAP_TYPE_FIRST_NONBUILTIN || ((int)type) >= CAP_TYPE_MAX) {
 		CAP_ERR("unregistered type %d -- BUG!", type);
 		return -EADDRNOTAVAIL;
 	}
@@ -603,7 +603,7 @@ static void cap_notify_delete(struct cspace *cspace, struct cnode *cnode)
 {
 	cap_type_t type = cnode->type;
 
-	if (type >= CAP_TYPE_FIRST_NONBUILTIN && type < CAP_TYPE_MAX
+	if (type >= CAP_TYPE_FIRST_NONBUILTIN && ((int)type) < CAP_TYPE_MAX
 	    && cspace->ts->types[type].name) {
 		if (cspace->ts->types[type].delete)
 			cspace->ts->types[type].delete(cspace, cnode, 
@@ -617,7 +617,7 @@ static void cap_notify_revocation(struct cspace *cspace, struct cnode *cnode)
 {
 	cap_type_t type = cnode->type;
 
-	if (type >= CAP_TYPE_FIRST_NONBUILTIN && type < CAP_TYPE_MAX
+	if (type >= CAP_TYPE_FIRST_NONBUILTIN && ((int)type) < CAP_TYPE_MAX
 	    && cspace->ts->types[type].name) {
 		if (cspace->ts->types[type].revoke)
 			cspace->ts->types[type].revoke(cspace, cnode, 
