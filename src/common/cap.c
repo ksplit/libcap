@@ -828,7 +828,7 @@ cap_delete(struct cspace *cspace, cptr_t c)
 }
 
 static int try_grant(struct cspace *cspacedst, struct cnode *cnodesrc,
-		     struct cnode *cnodedst)
+		struct cnode *cnodedst, cptr_t dest_cptr)
 {
 	/*
 	 * Try to lock the cdt containing source cnode (dest cnode should
@@ -858,6 +858,7 @@ static int try_grant(struct cspace *cspacedst, struct cnode *cnodesrc,
 	cnodedst->object = cnodesrc->object;
 	cnodedst->cspace = cspacedst;
 	cnodedst->cdt_root = cnodesrc->cdt_root;
+	cnodedst->cptr = dest_cptr;
 
 	return 1;
 }
@@ -941,8 +942,7 @@ cap_grant(struct cspace *cspacesrc, cptr_t c_src,
 		/*
 		 * Try to grant
 		 */
-		done = try_grant(cspacedst, cnodesrc, cnodedst);
-
+		done = try_grant(cspacedst, cnodesrc, cnodedst, c_dst);
 		/*
 		 * Release both cnodes
 		 */
