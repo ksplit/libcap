@@ -73,6 +73,10 @@ struct cnode;
 
 struct cap_type_ops {
 	char *name;
+    /* invoked when a new object is inserted into a c-space. The operation
+     * can be aborted by returning a negative exit status. That status will
+     * be returned from the cap_X call. Be careful not to overlap exit codes */
+    int (*insert)(struct cnode *cnode);
     /* Invoked when a cnode is deleted. The cptr, cspace, and object associated
      * with this cnode can obtained using the cnode accessor functions. 
      * The operation can be aborted by returning a negative exit status which

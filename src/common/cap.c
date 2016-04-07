@@ -554,6 +554,46 @@ int cap_cnode_verify(struct cspace *cspace, cptr_t c)
 
 cptr_t cap_cnode_cptr(struct cnode *cnode) { return cnode->cptr; }
 
+/* Get the type ops for the given cnode. If no type ops can be found,
+ * an error message is printed and NULL is returned. */
+static struct cap_type_ops * __cap_cnode_type_ops(struct cnode *cnode) {
+    if (cnode->type < CAP_TYPE_FIRST_NONBUILTIN || cnode->type >= CAP_TYPE_MAX) {
+        CAP_ERR("invalid object type %d -- BUG!", cnode->type);
+        return NULL;
+    }
+
+    struct cap_type_ops * ops = &cnode->cspace->ts->types[cnode->type];
+
+    if (! ops->name) { 
+        CAP_ERR("invalid object type %d -- BUG!", cnode->type); 
+        return NULL;
+    }
+
+    return ops;
+}
+
+
+static int __cap_notify_insert(struct cnode *c) {
+    struct cap_type_ops *ops = __cap_cnode_type_ops(c);
+    if (ops && ops->insert) { return ops->insert(c); }
+    return 0;
+}
+
+/*
+ * Mark cnode as free, null out fields.
+ *
+ * XXX: We could possibly free up the cnode table if all of its cnodes
+ * are free. For now, they just hang around and will be freed when
+ * the whole cspace is torn down.
+ */
+static void __cap_cnode_mark_free(struct cnode * cnode) {
+	cnode->type = CAP_TYPE_FREE;
+	cnode->object = NULL;
+	cnode->cdt_root = NULL;
+	cnode->metadata = NULL;
+}
+
+
 int cap_insert(struct cspace *cspace, cptr_t c, void *object, cap_type_t type)
 {
 	struct cnode *cnode;
@@ -584,36 +624,28 @@ int cap_insert(struct cspace *cspace, cptr_t c, void *object, cap_type_t type)
 	 * Set up cdt
 	 */
     cnode->cdt_root = __cap_cdt_root_create();
-    if (cnode->cdt_root == NULL) {
-        // XXX: Not sure if this is correct
-        return -1;
-    }
+    if (cnode->cdt_root == NULL) { goto fail; }
 
     __cap_cdt_root_incref(cnode->cdt_root);
+
+    ret = __cap_notify_insert(cnode);
+
+    if (ret < 0) { goto fail1; }
+
+finish:
 	/*
 	 * Release cnode
 	 */
 	cap_cnode_put(cnode);
 
-	return 0;
-}
+	return ret;
 
-/* Get the type ops for the given cnode. If no type ops can be found,
- * an error message is printed and NULL is returned. */
-static struct cap_type_ops * __cap_cnode_type_ops(struct cnode *cnode) {
-    if (cnode->type < CAP_TYPE_FIRST_NONBUILTIN || cnode->type >= CAP_TYPE_MAX) {
-        CAP_ERR("invalid object type %d -- BUG!", cnode->type);
-        return NULL;
-    }
-
-    struct cap_type_ops * ops = &cnode->cspace->ts->types[cnode->type];
-
-    if (! ops->name) { 
-        CAP_ERR("invalid object type %d -- BUG!", cnode->type); 
-        return NULL;
-    }
-
-    return ops;
+fail1:
+    __cap_cdt_root_decref_no_unlock(cnode->cdt_root);
+fail:
+    __cap_cnode_mark_free(cnode);
+    ret = -1;
+    goto finish;
 }
 
 static int __cap_notify_delete(struct cnode *cnode) {
@@ -890,20 +922,6 @@ static int __cap_try_grant(struct cnode *src, struct cnode *dst) {
 
 fail:
     return ret;
-}
-
-/*
- * Mark cnode as free, null out fields.
- *
- * XXX: We could possibly free up the cnode table if all of its cnodes
- * are free. For now, they just hang around and will be freed when
- * the whole cspace is torn down.
- */
-static void __cap_cnode_mark_free(struct cnode * cnode) {
-	cnode->type = CAP_TYPE_FREE;
-	cnode->object = NULL;
-	cnode->cdt_root = NULL;
-	cnode->metadata = NULL;
 }
 
 /**

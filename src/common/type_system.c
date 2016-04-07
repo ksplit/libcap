@@ -9,10 +9,10 @@
 #define CAP_TYPE_NUM_BUILTIN CAP_TYPE_FIRST_NONBUILTIN
 
 static struct cap_type_ops builtin_cap_types[CAP_TYPE_NUM_BUILTIN] = {
-	{"none", NULL, NULL, NULL, NULL}, 
-	{"invalid", NULL, NULL, NULL, NULL}, 
-	{"free", NULL, NULL, NULL, NULL}, 
-	{"cnode", NULL, NULL, NULL, NULL}, 
+	{"none", NULL, NULL, NULL, NULL, NULL}, 
+	{"invalid", NULL, NULL, NULL, NULL, NULL}, 
+	{"free", NULL, NULL, NULL, NULL, NULL}, 
+	{"cnode", NULL, NULL, NULL, NULL, NULL}, 
 };
 
 int cap_type_system_alloc(struct cap_type_system **ts)
@@ -91,6 +91,7 @@ cap_type_t cap_register_private_type(struct cap_type_system *ts,
 		goto out;
 	} else {
 		ts->types[i].name = strdup(ops->name);
+        ts->types[i].insert = ops->insert;
 		ts->types[i].delete = ops->delete;
 		ts->types[i].grant = ops->grant;
 		ts->types[i].derive_src = ops->derive_src;
