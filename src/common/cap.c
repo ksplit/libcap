@@ -796,7 +796,8 @@ static bool __cap_cnode_is_root(struct cnode *c) {
 }
 
 /* Try to actually add 'dst' as a child of 'src' in src's CDT. */
-static int __cap_try_derive(struct cnode *src, struct cnode *dst) {
+static int __cap_try_derive(struct cnode *src, struct cnode *dst, 
+                            void * e __attribute__ ((unused))) {
     int ret = 0;
 
     /* Both cnodes should point to valid objects in a derive operation */
@@ -871,7 +872,7 @@ static void __cap_try_grant_cnode_copy(struct cnode *src, struct cnode *dst,
     if (do_list) { dst->siblings = src->siblings; }
 }
 
-static int __cap_try_grant(struct cnode *src, struct cnode *dst) {
+static int __cap_try_grant(struct cnode *src, struct cnode *dst, void * o_type) {
     int ret;
     if (!__cap_cnode_is_used(src)) {
         CAP_ERR("bad source cnode, type = %d", src->type);
@@ -905,6 +906,9 @@ static int __cap_try_grant(struct cnode *src, struct cnode *dst) {
     /* Invoke the grant callback for this cnode type. No additional locking
      * of the ts is needed because all ts updated are additive. */
     ret = __cap_notify_grant(src, dst);
+
+    /* Notify the caller about the type of the granted node */
+    *((cap_type_t *) o_type) = cap_cnode_type(src);
 
     if (ret < 0) { /* rollback */
         CAP_ERR("grant callback aborted grant. code = %d, type = %d", ret, src->type);
@@ -1076,8 +1080,9 @@ static int __cap_try_revoke(struct cnode *cnode)
  * in error messages. */
 int __cap_cnode_binop(struct cspace *cspace_src, cptr_t c_src,
                       struct cspace *cspace_dst, cptr_t c_dst,
+                      void *extra,
                       char * op_name,
-                      int (*op)(struct cnode *src, struct cnode *dst)) {
+                      int (*op)(struct cnode *src, struct cnode *dst, void *extra)) {
     struct cnode *src, *dst;
     int ret;
 
@@ -1136,7 +1141,7 @@ int __cap_cnode_binop(struct cspace *cspace_src, cptr_t c_src,
 			goto fail2;
 		}
 
-		ret = op(src, dst);
+		ret = op(src, dst, extra);
         if (ret < 0) { goto fail3; }
 
 		/*
@@ -1219,13 +1224,14 @@ int __cap_cnode_unop(struct cspace *cspace, cptr_t c,
 
 int cap_derive(struct cspace *cspacesrc, cptr_t c_src,
                struct cspace *cspacedst, cptr_t c_dst) {
-    return __cap_cnode_binop(cspacesrc, c_src, cspacedst, c_dst,
+    return __cap_cnode_binop(cspacesrc, c_src, cspacedst, c_dst, NULL,
                              "cap_derive", __cap_try_derive);
 }
 
 int cap_grant(struct cspace *cspacesrc, cptr_t c_src,
-			  struct cspace *cspacedst, cptr_t c_dst) {
-    return __cap_cnode_binop(cspacesrc, c_src, cspacedst, c_dst,
+			  struct cspace *cspacedst, cptr_t c_dst,
+              cap_type_t * type) {
+    return __cap_cnode_binop(cspacesrc, c_src, cspacedst, c_dst, type,
                              "cap_grant", __cap_try_grant);
 }
 

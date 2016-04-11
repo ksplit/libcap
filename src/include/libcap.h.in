@@ -405,6 +405,7 @@ int cap_derive(struct cspace *cspacesrc, cptr_t c_src,
  * @c_src: the cptr to the slot/capability in the source cspace
  * @cspacedst: the destination cspace
  * @c_dst: the cptr to the slot in the destination cspace to grant to
+ * @type: The type of the granted cptr, this is an output argument.
  *
  * Copies cnode data in src cnode at c_src to dest cnode at c_dst. The dest
  * cnode will be a child of the src cnode in the cdt containing src cnode.
@@ -416,7 +417,8 @@ int cap_derive(struct cspace *cspacesrc, cptr_t c_src,
  * destination slot will start out with NULL metadata).
  */
 int cap_grant(struct cspace *cspacesrc, cptr_t c_src,
-              struct cspace *cspacedst, cptr_t c_dst);
+              struct cspace *cspacedst, cptr_t c_dst, 
+              cap_type_t *type);
 
 /**
  * cap_revoke -- Equivalent to calling cap_delete on all of the capability's 
