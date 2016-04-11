@@ -153,6 +153,8 @@ int testcase_grant()
 	struct cptr_cache *scache, *dcache;
 	char *p;
 
+    cap_type_t type;
+
 	/* Initialize Source cspace */
 	scsp = cap_alloc_cspace();
 	if (!scsp)
@@ -218,7 +220,7 @@ int testcase_grant()
 		goto destroy_dcache;
 	}
 
-	ret = cap_grant(scsp, sslot, dcsp, dslot);
+	ret = cap_grant(scsp, sslot, dcsp, dslot, &type);
 	if (ret < 0) {
 		printf("Granting capability failed\n");
 		goto destroy_dcache;
@@ -285,7 +287,8 @@ fail:
 int grant(struct cspace *scsp, struct cspace *dcsp, cptr_t sslot, cptr_t dslot) {
 	int ret = 0;
 
-	ret = cap_grant(scsp, sslot, dcsp, dslot);
+    cap_type_t type;
+	ret = cap_grant(scsp, sslot, dcsp, dslot, &type);
 	if (ret < 0)
 		printf("Granting capability failed\n");
 

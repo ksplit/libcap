@@ -182,6 +182,7 @@ void *thread_grant(void *arg) {
 	int ret = 0;
 	int i = 0;
 	int n = 200;
+    cap_type_t type;
 
 	printf("Grant called\n");
 
@@ -203,7 +204,7 @@ void *thread_grant(void *arg) {
 			printf("Thread Grant : unstalled cptr slot %d (0x%lx)\n",
 				   i,cptr_val(sslot_arr[i]));
 		}
-		ret = cap_grant(scsp, sslot_arr[i], dcsp, dslot);
+		ret = cap_grant(scsp, sslot_arr[i], dcsp, dslot, &type);
 		if (ret < 0) {
 			printf("Granting capability failed\n");
 		} else
