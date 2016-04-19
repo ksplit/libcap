@@ -12,6 +12,8 @@
 #ifndef __LIBCAP_H__
 #define __LIBCAP_H__
 
+#include <stdbool.h>
+
 #include <libcap_config.h>
 #include <libcap_platform.h>
 #include <libcap_types.h>
@@ -437,6 +439,15 @@ int cap_grant(struct cspace *cspacesrc, cptr_t c_src,
  * the metadata field will start out as NULL).
  */
 int cap_revoke(struct cspace *cspace, cptr_t c);
+
+typedef bool (*cap_revoke_till_f)(struct cnode *);
+
+/* Continues revoking down each path of the CDT until 'func' returns true, or
+ * we reach a leaf node of the CDT. This allows for partial, revoke-like edits
+ * to the CDT. Calling cap_revoke_till with a function that allways returns
+ * false is equivalent to calling `cap_revoke` */
+int cap_revoke_till(struct cspace *cspace, cptr_t c, cap_revoke_till_f func);
+
 /**
  * cap_cnode_get -- Return the cnode that this cptr points to in cspace
  * @cspace: the cspace to look in

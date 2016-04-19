@@ -932,7 +932,7 @@ fail:
  * Tries to lock cdt and remove cnode from it. Returns non-zero if 
  * cnode successfully deleted.
  */
-static int __cap_try_delete(struct cnode *cnode)
+static int __cap_try_delete(struct cnode *cnode, __attribute__((unused)) void * _args)
 {
     if (! __cap_cnode_is_used(cnode)) {
         CAP_ERR("bad cnode, type = %d", cnode->type);
@@ -970,8 +970,9 @@ static int __cap_try_delete(struct cnode *cnode)
 	return 1;
 }
 
-static int __cap_try_revoke(struct cnode *cnode)
+static int __cap_try_revoke(struct cnode *cnode, void * till_func_)
 {
+	cap_revoke_till_f till_func = (cap_revoke_till_f) till_func;
     if (! __cap_cnode_is_used(cnode)) {
         CAP_ERR("bad cnode, type = %d", cnode->type);
         return -EINVAL;
@@ -1012,7 +1013,7 @@ static int __cap_try_revoke(struct cnode *cnode)
 	 */
 	while (!list_empty(&cnode->children)) {
 		child = list_first_entry(&cnode->children, struct cnode,
-					 siblings);
+								 siblings);
 		/*
 		 * Lock child. (If someone has the lock but it is trying to
 		 * lock the cdt, they will relinquish.)
@@ -1027,6 +1028,10 @@ static int __cap_try_revoke(struct cnode *cnode)
          * free, or a cnode.
 		 */
 		CAP_BUG_ON(!__cap_cnode_is_used(child));
+
+		if (till_func(child)) {
+			goto next_child;
+		}
 
         /* We need to update the cdt_root of this child before we call
          * cap_cdt_remove_no_unlock because we never called
@@ -1050,6 +1055,8 @@ static int __cap_try_revoke(struct cnode *cnode)
         __cap_notify_delete(child);
 
         __cap_cnode_mark_free(child);
+
+next_child:
 
 		/*
 		 * Unlock child
@@ -1172,7 +1179,8 @@ int __cap_cnode_binop(struct cspace *cspace_src, cptr_t c_src,
  * above __cap_cnode_binop. 'op_name' is used for error messages. */
 int __cap_cnode_unop(struct cspace *cspace, cptr_t c,
                      char * op_name,
-                     int (*op)(struct cnode *c)) {
+                     int (*op)(struct cnode *, void *),
+					 void * args) {
 	struct cnode *cnode;
 	int ret;
 
@@ -1196,7 +1204,7 @@ int __cap_cnode_unop(struct cspace *cspace, cptr_t c,
 		}
 
         /* Do the op, if we get a fail code, exit the loop. */
-        ret = op(cnode);
+        ret = op(cnode, args);
         if (ret < 0) { goto fail2; }
 
 		/*
@@ -1236,11 +1244,21 @@ int cap_grant(struct cspace *cspacesrc, cptr_t c_src,
 }
 
 void cap_delete(struct cspace *cspace, cptr_t c) {
-    __cap_cnode_unop(cspace, c, "cap_delete", __cap_try_delete);
+    __cap_cnode_unop(cspace, c, "cap_delete", __cap_try_delete, NULL);
+}
+
+static bool __always_false(__attribute__((unused)) struct cnode *cnode) {
+	return false;
 }
 
 int cap_revoke(struct cspace *cspace, cptr_t c) {
-    return __cap_cnode_unop(cspace, c, "cap_revoke", __cap_try_revoke);
+	return __cap_cnode_unop(cspace, c, "cap_revoke", 
+							__cap_try_revoke, (void *) __always_false);
+}
+
+int cap_revoke_till(struct cspace *cspace, cptr_t c, cap_revoke_till_f func) {
+	return __cap_cnode_unop(cspace, c, "cap_revoke_till", 
+							__cap_try_revoke, (void *) func);
 }
 
 static void __cap_cnode_tear_down(struct cnode *cnode, struct cspace *cspace)
@@ -1265,7 +1283,7 @@ static void __cap_cnode_tear_down(struct cnode *cnode, struct cspace *cspace)
 		if (cnode->type == CAP_TYPE_FREE)
 			goto out2;
 
-        done = __cap_try_delete(cnode);
+        done = __cap_try_delete(cnode, NULL);
         if (done < 0) {
             CAP_ERR("try_delete_cnode failed! code=%d", done);
             goto out2;
