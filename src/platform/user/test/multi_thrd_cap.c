@@ -91,7 +91,7 @@ int insert(struct cspace *csp, cptr_t slot)
 	/* using global could lead to race */
 	snprintf(p, 32, "stringobj%d", next); 
 
-	ret = cap_insert(csp, slot, p, stringobj_type);
+	ret = cap_insert(csp, slot, p, stringobj_type, NULL);
 	if (ret < 0) {
 		CAP_ERR("cap insertion failed\n");
 		return ret;
@@ -204,7 +204,7 @@ void *thread_grant(void *arg) {
 			printf("Thread Grant : unstalled cptr slot %d (0x%lx)\n",
 				   i,cptr_val(sslot_arr[i]));
 		}
-		ret = cap_grant(scsp, sslot_arr[i], dcsp, dslot, &type);
+		ret = cap_grant(scsp, sslot_arr[i], dcsp, dslot, NULL, &type);
 		if (ret < 0) {
 			printf("Granting capability failed\n");
 		} else

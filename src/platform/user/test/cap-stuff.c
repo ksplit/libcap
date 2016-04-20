@@ -84,7 +84,7 @@ int testcase1()
 
 	/* Insert capability in cspace */
 	printf("\nTestCase : Add Capability to Cspace.\n");
-	ret = cap_insert(csp, slot_out, p, stringobj_type);
+	ret = cap_insert(csp, slot_out, p, stringobj_type, NULL);
 
 	if (ret < 0) {
 		CAP_ERR("cap insertion failed\n");
@@ -125,7 +125,7 @@ int testcase1()
 	 * try to insert capability in cspace. Following call should
 	 * return error.
 	 */
-	ret = cap_insert(csp, slot_out, p, stringobj_type);
+	ret = cap_insert(csp, slot_out, p, stringobj_type, NULL);
 
 	if (ret)
 		printf("Cspace Deletion Passed\n");
@@ -185,7 +185,7 @@ int testcase_grant()
 	}
 	p = strdup("testcase_grant");
 	/* Insert capability in cspace */
-	ret = cap_insert(scsp, sslot, p, stringobj_type);
+	ret = cap_insert(scsp, sslot, p, stringobj_type, NULL);
 	if (ret) {
 		CAP_ERR("cap insertion failed\n");
 		goto destroy_scache;
@@ -220,7 +220,7 @@ int testcase_grant()
 		goto destroy_dcache;
 	}
 
-	ret = cap_grant(scsp, sslot, dcsp, dslot, &type);
+	ret = cap_grant(scsp, sslot, dcsp, dslot, NULL, &type);
 	if (ret < 0) {
 		printf("Granting capability failed\n");
 		goto destroy_dcache;
@@ -272,7 +272,7 @@ int insert(struct cspace *csp, cptr_t slot)
 	}
 	snprintf(p,5,"icap");
 
-	ret = cap_insert(csp, slot, p, stringobj_type);
+	ret = cap_insert(csp, slot, p, stringobj_type, NULL);
 	if (ret < 0) {
 		CAP_ERR("cap insertion failed\n");
 	}
@@ -288,7 +288,7 @@ int grant(struct cspace *scsp, struct cspace *dcsp, cptr_t sslot, cptr_t dslot) 
 	int ret = 0;
 
     cap_type_t type;
-	ret = cap_grant(scsp, sslot, dcsp, dslot, &type);
+	ret = cap_grant(scsp, sslot, dcsp, dslot, NULL, &type);
 	if (ret < 0)
 		printf("Granting capability failed\n");
 

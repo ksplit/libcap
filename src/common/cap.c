@@ -594,7 +594,7 @@ static void __cap_cnode_mark_free(struct cnode * cnode) {
 }
 
 
-int cap_insert(struct cspace *cspace, cptr_t c, void *object, cap_type_t type)
+int cap_insert(struct cspace *cspace, cptr_t c, void *object, cap_type_t type, void *metadata)
 {
 	struct cnode *cnode;
 	int ret;
@@ -618,7 +618,7 @@ int cap_insert(struct cspace *cspace, cptr_t c, void *object, cap_type_t type)
 	cnode->cspace = cspace;
 	cnode->object = object;
 	cnode->type = type;
-	//cnode->cptr = c;
+    cap_cnode_set_metadata(cnode, metadata);
 
 	/*
 	 * Set up cdt
@@ -864,6 +864,11 @@ fail3:
     return ret;
 }
 
+struct __cap_grant_args {
+    void * metadata;
+    cap_type_t * o_type;
+};
+
 static void __cap_try_grant_cnode_copy(struct cnode *src, struct cnode *dst, 
                                        bool do_list) {
     dst->type = src->type;
@@ -872,7 +877,8 @@ static void __cap_try_grant_cnode_copy(struct cnode *src, struct cnode *dst,
     if (do_list) { dst->siblings = src->siblings; }
 }
 
-static int __cap_try_grant(struct cnode *src, struct cnode *dst, void * o_type) {
+static int __cap_try_grant(struct cnode *src, struct cnode *dst, void * args_) {
+    struct __cap_grant_args * args = (struct __cap_grant_args *) args_;
     int ret;
     if (!__cap_cnode_is_used(src)) {
         CAP_ERR("bad source cnode, type = %d", src->type);
@@ -903,12 +909,14 @@ static int __cap_try_grant(struct cnode *src, struct cnode *dst, void * o_type) 
 
     __cap_try_grant_cnode_copy(src, dst, false);
 
+    cap_cnode_set_metadata(dst, args->metadata);
+
     /* Invoke the grant callback for this cnode type. No additional locking
      * of the ts is needed because all ts updated are additive. */
     ret = __cap_notify_grant(src, dst);
 
     /* Notify the caller about the type of the granted node */
-    *((cap_type_t *) o_type) = cap_cnode_type(src);
+    *args->o_type = cap_cnode_type(src);
 
     if (ret < 0) { /* rollback */
         CAP_ERR("grant callback aborted grant. code = %d, type = %d", ret, src->type);
@@ -1238,8 +1246,13 @@ int cap_derive(struct cspace *cspacesrc, cptr_t c_src,
 
 int cap_grant(struct cspace *cspacesrc, cptr_t c_src,
 			  struct cspace *cspacedst, cptr_t c_dst,
+              void * dst_metadata,
               cap_type_t * type) {
-    return __cap_cnode_binop(cspacesrc, c_src, cspacedst, c_dst, type,
+    struct __cap_grant_args args = {
+        .metadata = dst_metadata,
+        .o_type = type
+    };
+    return __cap_cnode_binop(cspacesrc, c_src, cspacedst, c_dst, (void *) &args,
                              "cap_grant", __cap_try_grant);
 }
 
