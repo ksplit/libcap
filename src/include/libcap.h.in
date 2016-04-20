@@ -342,15 +342,15 @@ void cap_free_cspace(struct cspace *cspace);
  * cap_cspace_setowner -- Set the "owner" field of the given cspace
  *
  * This can be any object you wish. You will be able to access it
- * via cap_cspace_getowner (perhaps it would be convenient for you
+ * via cap_cspace_owner (perhaps it would be convenient for you
  * to do so in one of the cap type ops, provide some kind of
  * context for the cspace).
  */
-void cap_cspace_setowner(struct cspace *cspace, void * owner);
+void cap_cspace_set_owner(struct cspace *cspace, void * owner);
 /**
- * cap_cspace_getowner -- Get the "owner" field of the given cspace
+ * cap_cspace_owner -- Get the "owner" field of the given cspace
  */
-void* cap_cspace_getowner(struct cspace *cspace);
+void* cap_cspace_owner(struct cspace *cspace);
 /**
  * cap_cspace_get_type_system -- Returns a pointer to the type system
  *                               that was attached to the cspace when it

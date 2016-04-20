@@ -293,10 +293,10 @@ int cap_init_cspace(struct cspace *cspace)
 }
 #endif
 
-inline void cap_cspace_setowner(struct cspace *cspace, void * owner) {
+inline void cap_cspace_set_owner(struct cspace *cspace, void * owner) {
     cspace->owner = owner;
 }
-inline void* cap_cspace_getowner(struct cspace *cspace) { return cspace->owner; }
+inline void* cap_cspace_owner(struct cspace *cspace) { return cspace->owner; }
 
 static int update_cnode_table(struct cspace *cspace,
 			      struct cnode_table *old, unsigned long level_id,
@@ -1423,8 +1423,8 @@ EXPORT_SYMBOL(cap_register_private_type);
 EXPORT_SYMBOL(cap_alloc_cspace);
 EXPORT_SYMBOL(cap_free_cspace);
 EXPORT_SYMBOL(cap_destroy_cspace);
-EXPORT_SYMBOL(cap_cspace_setowner);
-EXPORT_SYMBOL(cap_cspace_getowner);
+EXPORT_SYMBOL(cap_cspace_set_owner);
+EXPORT_SYMBOL(cap_cspace_owner);
 EXPORT_SYMBOL(cap_cnode_get);
 EXPORT_SYMBOL(cap_cnode_put);
 EXPORT_SYMBOL(cap_cnode_object);
@@ -1438,6 +1438,7 @@ EXPORT_SYMBOL(cap_insert);
 EXPORT_SYMBOL(cap_delete);
 EXPORT_SYMBOL(cap_grant);
 EXPORT_SYMBOL(cap_revoke);
+EXPORT_SYMBOL(cap_revoke_till);
 #ifdef CAP_ENABLE_GLOBAL_TYPES
 EXPORT_SYMBOL(cap_init_cspace);
 EXPORT_SYMBOL(cap_register_type);
