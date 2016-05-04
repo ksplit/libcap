@@ -35,12 +35,12 @@
 #include "libcap_internal.h"
 #include "libcap_types.h"
 
-int stringobj_delete(struct cnode *cnode)
+int stringobj_delete(struct cnode *cnode, void * payload)
 {
 	CAP_DEBUG(0, "object = '%s'\n", (char *)cap_cnode_object(cnode));
 }
 
-int stringobj_bin(struct cnode *src, struct cnode *cnode)
+int stringobj_bin(struct cnode *src, struct cnode *cnode, void * payload)
 {
 	CAP_DEBUG(0, "object_a = '%s', object_b = '%s'\n", 
 				 (char *)cap_cnode_object(src), (char *) cap_cnode_object(src));
@@ -165,10 +165,10 @@ void *thread_revoke(void* arg)
 			printf("Thread Revoke : unstalled cptr slot %i (0x%lx,0x%lx)\n",
 				   i,cptr_val(sslot_arr[i]),cptr_val(dslot_arr[i]));
 		}
-		ret = cap_revoke(scsp, sslot_arr[i]);
+		ret = cap_revoke(scsp, sslot_arr[i], NULL);
 		if (ret < 0)
 			printf("Revoke failed\n");
-		cap_delete(scsp, sslot_arr[i]);
+		cap_delete(scsp, sslot_arr[i], NULL);
 		cptr_free(scache, sslot_arr[i]);
 		sslot_arr[i] = CAP_CPTR_NULL;
 

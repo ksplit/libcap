@@ -573,9 +573,9 @@ static struct cap_type_ops * __cap_cnode_type_ops(struct cnode *cnode) {
 }
 
 
-static int __cap_notify_insert(struct cnode *c) {
+static int __cap_notify_insert(struct cnode *c, void * callback_payload) {
     struct cap_type_ops *ops = __cap_cnode_type_ops(c);
-    if (ops && ops->insert) { return ops->insert(c); }
+    if (ops && ops->insert) { return ops->insert(c, callback_payload); }
     return 0;
 }
 
@@ -594,7 +594,8 @@ static void __cap_cnode_mark_free(struct cnode * cnode) {
 }
 
 
-int cap_insert(struct cspace *cspace, cptr_t c, void *object, cap_type_t type, void *metadata)
+int cap_insert(struct cspace *cspace, cptr_t c, void *object, cap_type_t type, 
+               void *callback_payload)
 {
 	struct cnode *cnode;
 	int ret;
@@ -618,7 +619,6 @@ int cap_insert(struct cspace *cspace, cptr_t c, void *object, cap_type_t type, v
 	cnode->cspace = cspace;
 	cnode->object = object;
 	cnode->type = type;
-    cap_cnode_set_metadata(cnode, metadata);
 
 	/*
 	 * Set up cdt
@@ -628,7 +628,7 @@ int cap_insert(struct cspace *cspace, cptr_t c, void *object, cap_type_t type, v
 
     __cap_cdt_root_incref(cnode->cdt_root);
 
-    ret = __cap_notify_insert(cnode);
+    ret = __cap_notify_insert(cnode, callback_payload);
 
     if (ret < 0) { goto fail1; }
 
@@ -648,27 +648,29 @@ fail:
     goto finish;
 }
 
-static int __cap_notify_delete(struct cnode *cnode) {
+static int __cap_notify_delete(struct cnode *cnode, void * callback_payload) {
     struct cap_type_ops * ops = __cap_cnode_type_ops(cnode);
-    if (ops && ops->delete) { return ops->delete(cnode); }
+    if (ops && ops->delete) { return ops->delete(cnode, callback_payload); }
     return 0;
 }
 
-static int __cap_notify_grant(struct cnode *src, struct cnode *dst) {
+static int __cap_notify_grant(struct cnode *src, struct cnode *dst, 
+                              void * callback_payload) {
     struct cap_type_ops *ops = __cap_cnode_type_ops(src);
-    if (ops && ops->grant) { return ops->grant(src, dst); }
+    if (ops && ops->grant) { return ops->grant(src, dst, callback_payload); }
     return 0;
 }
 
-static int __cap_notify_derive(struct cnode *src, struct cnode *dst) {
+static int __cap_notify_derive(struct cnode *src, struct cnode *dst, 
+                               void * callback_payload) {
     struct cap_type_ops *src_ops = __cap_cnode_type_ops(src);
     if (src_ops && src_ops->derive_src) { 
-        int ret = src_ops->derive_src(src, dst);
+        int ret = src_ops->derive_src(src, dst, callback_payload);
         if (ret < 0) { return ret; }
     }
     struct cap_type_ops *dst_ops = __cap_cnode_type_ops(src);
     if (dst_ops && dst_ops->derive_dst) { 
-        return src_ops->derive_dst(src, dst); 
+        return src_ops->derive_dst(src, dst, callback_payload); 
     }
     return 0;
 }
@@ -797,7 +799,8 @@ static bool __cap_cnode_is_root(struct cnode *c) {
 
 /* Try to actually add 'dst' as a child of 'src' in src's CDT. */
 static int __cap_try_derive(struct cnode *src, struct cnode *dst, 
-                            void * e __attribute__ ((unused))) {
+                            __attribute__ ((unused)) void * args_,
+                            void * callback_payload) {
     int ret = 0;
 
     /* Both cnodes should point to valid objects in a derive operation */
@@ -833,6 +836,13 @@ static int __cap_try_derive(struct cnode *src, struct cnode *dst,
         goto fail; 
     }
 
+    /* None of the effects we do below are externally observable, so it's OK
+     * to do this here. */
+    ret = __cap_notify_derive(src, dst, callback_payload);
+    if (ret < 0) {
+        goto fail;
+    }
+
 	/*
 	 * Add dest cnode to source's children in cdt
 	 */
@@ -855,7 +865,8 @@ static int __cap_try_derive(struct cnode *src, struct cnode *dst,
     /* Make our cdt_root point to the real cdt_root */
     dst->cdt_root = src->cdt_root;
 
-    ret = 1; goto fail2;
+    ret = 1;
+
 fail:
     __cap_cnode_release_cdt_root(dst);
 fail2:
@@ -863,11 +874,6 @@ fail2:
 fail3:
     return ret;
 }
-
-struct __cap_grant_args {
-    void * metadata;
-    cap_type_t * o_type;
-};
 
 static void __cap_try_grant_cnode_copy(struct cnode *src, struct cnode *dst, 
                                        bool do_list) {
@@ -877,8 +883,9 @@ static void __cap_try_grant_cnode_copy(struct cnode *src, struct cnode *dst,
     if (do_list) { dst->siblings = src->siblings; }
 }
 
-static int __cap_try_grant(struct cnode *src, struct cnode *dst, void * args_) {
-    struct __cap_grant_args * args = (struct __cap_grant_args *) args_;
+static int __cap_try_grant(struct cnode *src, struct cnode *dst, void * args_,
+                           void * callback_payload) {
+    cap_type_t * o_type = (cap_type_t *) args_;
     int ret;
     if (!__cap_cnode_is_used(src)) {
         CAP_ERR("bad source cnode, type = %d", src->type);
@@ -909,14 +916,12 @@ static int __cap_try_grant(struct cnode *src, struct cnode *dst, void * args_) {
 
     __cap_try_grant_cnode_copy(src, dst, false);
 
-    cap_cnode_set_metadata(dst, args->metadata);
-
     /* Invoke the grant callback for this cnode type. No additional locking
      * of the ts is needed because all ts updated are additive. */
-    ret = __cap_notify_grant(src, dst);
+    ret = __cap_notify_grant(src, dst, callback_payload);
 
     /* Notify the caller about the type of the granted node */
-    *args->o_type = cap_cnode_type(src);
+    *o_type = cap_cnode_type(src);
 
     if (ret < 0) { /* rollback */
         CAP_ERR("grant callback aborted grant. code = %d, type = %d", ret, src->type);
@@ -940,7 +945,9 @@ fail:
  * Tries to lock cdt and remove cnode from it. Returns non-zero if 
  * cnode successfully deleted.
  */
-static int __cap_try_delete(struct cnode *cnode, __attribute__((unused)) void * _args)
+static int __cap_try_delete(struct cnode *cnode, 
+                            __attribute__((unused)) void * _args,
+                            void * callback_payload)
 {
     if (! __cap_cnode_is_used(cnode)) {
         CAP_ERR("bad cnode, type = %d", cnode->type);
@@ -959,7 +966,8 @@ static int __cap_try_delete(struct cnode *cnode, __attribute__((unused)) void * 
 	 * deleting a cnode for an endpoint, we need to ensure the lcd isn't
 	 * in the endpoint's queues).
 	 */
-    int ret = __cap_notify_delete(cnode);
+    int ret = __cap_notify_delete(cnode, callback_payload);
+
     if (ret < 0) { /* abort delete */
         CAP_ERR("delete handler aborted delete, code = %d, type = %d", ret, cnode->type);
         __cap_cnode_release_cdt_root(cnode);
@@ -978,7 +986,7 @@ static int __cap_try_delete(struct cnode *cnode, __attribute__((unused)) void * 
 	return 1;
 }
 
-static int __cap_try_revoke(struct cnode *cnode, void * till_func_)
+static int __cap_try_revoke(struct cnode *cnode, void * till_func_, void * callback_payload)
 {
 	cap_revoke_till_f till_func = (cap_revoke_till_f) till_func;
     if (! __cap_cnode_is_used(cnode)) {
@@ -1060,7 +1068,7 @@ static int __cap_try_revoke(struct cnode *cnode, void * till_func_)
 		/*
 		 * Update microkernel state to reflect rights change 
 		 */
-        __cap_notify_delete(child);
+        __cap_notify_delete(child, callback_payload);
 
         __cap_cnode_mark_free(child);
 
@@ -1096,8 +1104,10 @@ next_child:
 int __cap_cnode_binop(struct cspace *cspace_src, cptr_t c_src,
                       struct cspace *cspace_dst, cptr_t c_dst,
                       void *extra,
+                      void *callback_payload,
                       char * op_name,
-                      int (*op)(struct cnode *src, struct cnode *dst, void *extra)) {
+                      int (*op)(struct cnode *src, struct cnode *dst, 
+                                void *extra, void * callback_payload)) {
     struct cnode *src, *dst;
     int ret;
 
@@ -1156,7 +1166,7 @@ int __cap_cnode_binop(struct cspace *cspace_src, cptr_t c_src,
 			goto fail2;
 		}
 
-		ret = op(src, dst, extra);
+		ret = op(src, dst, extra, callback_payload);
         if (ret < 0) { goto fail3; }
 
 		/*
@@ -1186,9 +1196,10 @@ int __cap_cnode_binop(struct cspace *cspace_src, cptr_t c_src,
  * cptr. The protocol for this function is described in the comment
  * above __cap_cnode_binop. 'op_name' is used for error messages. */
 int __cap_cnode_unop(struct cspace *cspace, cptr_t c,
+                     void * extra,
+                     void * callback_payload,
                      char * op_name,
-                     int (*op)(struct cnode *, void *),
-					 void * args) {
+                     int (*op)(struct cnode *, void * extra, void * payload)) {
 	struct cnode *cnode;
 	int ret;
 
@@ -1212,7 +1223,7 @@ int __cap_cnode_unop(struct cspace *cspace, cptr_t c,
 		}
 
         /* Do the op, if we get a fail code, exit the loop. */
-        ret = op(cnode, args);
+        ret = op(cnode, extra, callback_payload);
         if (ret < 0) { goto fail2; }
 
 		/*
@@ -1239,39 +1250,41 @@ int __cap_cnode_unop(struct cspace *cspace, cptr_t c,
 }
 
 int cap_derive(struct cspace *cspacesrc, cptr_t c_src,
-               struct cspace *cspacedst, cptr_t c_dst) {
-    return __cap_cnode_binop(cspacesrc, c_src, cspacedst, c_dst, NULL,
+               struct cspace *cspacedst, cptr_t c_dst,
+               void * callback_payload) {
+    return __cap_cnode_binop(cspacesrc, c_src, cspacedst, c_dst, 
+                             NULL, callback_payload,
                              "cap_derive", __cap_try_derive);
 }
 
 int cap_grant(struct cspace *cspacesrc, cptr_t c_src,
 			  struct cspace *cspacedst, cptr_t c_dst,
-              void * dst_metadata,
+              void * callback_payload,
               cap_type_t * type) {
-    struct __cap_grant_args args = {
-        .metadata = dst_metadata,
-        .o_type = type
-    };
-    return __cap_cnode_binop(cspacesrc, c_src, cspacedst, c_dst, (void *) &args,
+    return __cap_cnode_binop(cspacesrc, c_src, cspacedst, c_dst, 
+                             (void *) type, callback_payload,
                              "cap_grant", __cap_try_grant);
 }
 
-void cap_delete(struct cspace *cspace, cptr_t c) {
-    __cap_cnode_unop(cspace, c, "cap_delete", __cap_try_delete, NULL);
+void cap_delete(struct cspace *cspace, cptr_t c, void * callback_payload) {
+    __cap_cnode_unop(cspace, c, NULL, callback_payload, "cap_delete", __cap_try_delete);
 }
 
 static bool __always_false(__attribute__((unused)) struct cnode *cnode) {
 	return false;
 }
 
-int cap_revoke(struct cspace *cspace, cptr_t c) {
-	return __cap_cnode_unop(cspace, c, "cap_revoke", 
-							__cap_try_revoke, (void *) __always_false);
+int cap_revoke(struct cspace *cspace, cptr_t c, void * callback_payload) {
+	return __cap_cnode_unop(cspace, c, 
+                            (void *) __always_false, callback_payload,
+                            "cap_revoke", __cap_try_revoke);
 }
 
-int cap_revoke_till(struct cspace *cspace, cptr_t c, cap_revoke_till_f func) {
-	return __cap_cnode_unop(cspace, c, "cap_revoke_till", 
-							__cap_try_revoke, (void *) func);
+int cap_revoke_till(struct cspace *cspace, cptr_t c, cap_revoke_till_f func, 
+                    void * callback_payload) {
+	return __cap_cnode_unop(cspace, c, 
+                            (void *) func, callback_payload,
+                            "cap_revoke_till", __cap_try_revoke);
 }
 
 static void __cap_cnode_tear_down(struct cnode *cnode, struct cspace *cspace)
@@ -1296,7 +1309,7 @@ static void __cap_cnode_tear_down(struct cnode *cnode, struct cspace *cspace)
 		if (cnode->type == CAP_TYPE_FREE)
 			goto out2;
 
-        done = __cap_try_delete(cnode, NULL);
+        done = __cap_try_delete(cnode, NULL, NULL);
         if (done < 0) {
             CAP_ERR("try_delete_cnode failed! code=%d", done);
             goto out2;
