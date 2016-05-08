@@ -932,6 +932,8 @@ static int __cap_try_grant(struct cnode *src, struct cnode *dst, void * args_,
          * cnode lock. I'm not sure if copying held locks is OK. */
         __cap_try_grant_cnode_copy(&_tmp, dst, true);
     } else {
+        /* increment the CDT refcount for the granted-to node. */
+        __cap_cdt_root_incref(dst->cdt_root);
         ret = 1;
     }
 
@@ -988,7 +990,7 @@ static int __cap_try_delete(struct cnode *cnode,
 
 static int __cap_try_revoke(struct cnode *cnode, void * till_func_, void * callback_payload)
 {
-	cap_revoke_till_f till_func = (cap_revoke_till_f) till_func;
+	cap_revoke_till_f till_func = (cap_revoke_till_f) till_func_;
     if (! __cap_cnode_is_used(cnode)) {
         CAP_ERR("bad cnode, type = %d", cnode->type);
         return -EINVAL;
@@ -1027,9 +1029,19 @@ static int __cap_try_revoke(struct cnode *cnode, void * till_func_, void * callb
 	 * are short lived and aren't reasonable to try to cancel, there's no 
 	 * microkernel state that needs to be updated.
 	 */
-	while (!list_empty(&cnode->children)) {
-		child = list_first_entry(&cnode->children, struct cnode,
-								 siblings);
+
+    /* Note: This should do a depth-first traversal of the nodes, skipping any
+     * sub-trees that `till_func` tells us to skip. */
+
+    struct list_head * cur = cnode->children.next;
+    struct list_head * next = cur->next;
+    /* The tree lists are circular, so keep traversing the 'children' list
+     * until we reach the root again. We have to save the "next" ptr before
+     * we actually loop because 'cur' will become invalid if it gets removed
+     * from the tree. */
+    for (; &cnode->children != cur; cur = next, next = cur->next) {
+        child = list_entry(cur, struct cnode, siblings);
+
 		/*
 		 * Lock child. (If someone has the lock but it is trying to
 		 * lock the cdt, they will relinquish.)
@@ -1103,6 +1115,7 @@ next_child:
  * in error messages. */
 int __cap_cnode_binop(struct cspace *cspace_src, cptr_t c_src,
                       struct cspace *cspace_dst, cptr_t c_dst,
+                      bool alloc_dest,
                       void *extra,
                       void *callback_payload,
                       char * op_name,
@@ -1160,9 +1173,9 @@ int __cap_cnode_binop(struct cspace *cspace_src, cptr_t c_src,
 		 * this would mean thread1 would have to be a sender and 
 		 * receiver at the same time, which shouldn't be allowed.
 		 */
-		ret = __cap_cnode_get(cspace_dst, c_dst, true, &dst);
+		ret = __cap_cnode_get(cspace_dst, c_dst, alloc_dest, &dst);
 		if (ret) {
-			CAP_ERR("couldn't get dest cnode");
+			CAP_ERR("couldn't get dest cnode\n");
 			goto fail2;
 		}
 
@@ -1222,6 +1235,7 @@ int __cap_cnode_unop(struct cspace *cspace, cptr_t c,
 			goto fail1;
 		}
 
+        CAP_MSG("Extra on real cap msg: %p\n", extra);
         /* Do the op, if we get a fail code, exit the loop. */
         ret = op(cnode, extra, callback_payload);
         if (ret < 0) { goto fail2; }
@@ -1241,7 +1255,7 @@ int __cap_cnode_unop(struct cspace *cspace, cptr_t c,
 
 	} while (!ret);
 
-    return ret;
+    return 0;
 
  fail2:
 	cap_cnode_put(cnode);
@@ -1252,7 +1266,7 @@ int __cap_cnode_unop(struct cspace *cspace, cptr_t c,
 int cap_derive(struct cspace *cspacesrc, cptr_t c_src,
                struct cspace *cspacedst, cptr_t c_dst,
                void * callback_payload) {
-    return __cap_cnode_binop(cspacesrc, c_src, cspacedst, c_dst, 
+    return __cap_cnode_binop(cspacesrc, c_src, cspacedst, c_dst, false,
                              NULL, callback_payload,
                              "cap_derive", __cap_try_derive);
 }
@@ -1261,7 +1275,7 @@ int cap_grant(struct cspace *cspacesrc, cptr_t c_src,
 			  struct cspace *cspacedst, cptr_t c_dst,
               void * callback_payload,
               cap_type_t * type) {
-    return __cap_cnode_binop(cspacesrc, c_src, cspacedst, c_dst, 
+    return __cap_cnode_binop(cspacesrc, c_src, cspacedst, c_dst, true,
                              (void *) type, callback_payload,
                              "cap_grant", __cap_try_grant);
 }
@@ -1275,6 +1289,7 @@ static bool __always_false(__attribute__((unused)) struct cnode *cnode) {
 }
 
 int cap_revoke(struct cspace *cspace, cptr_t c, void * callback_payload) {
+    CAP_MSG("Doing real cap revoke\n");
 	return __cap_cnode_unop(cspace, c, 
                             (void *) __always_false, callback_payload,
                             "cap_revoke", __cap_try_revoke);
