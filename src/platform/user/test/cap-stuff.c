@@ -5,12 +5,12 @@
 #include "libcap_internal.h"
 #include "libcap_types.h"
 
-int stringobj_delete(struct cnode *cnode)
+int stringobj_delete(struct cnode *cnode, void * payload)
 {
 	CAP_DEBUG(0, "object = '%s'\n", (char *)cap_cnode_object(cnode));
 }
 
-int stringobj_bin(struct cnode *src, struct cnode *cnode)
+int stringobj_bin(struct cnode *src, struct cnode *cnode, void * payload)
 {
 	CAP_DEBUG(0, "object_a = '%s', object_b = '%s'\n", 
 				 (char *)cap_cnode_object(src), (char *) cap_cnode_object(src));
@@ -102,7 +102,7 @@ int testcase1()
 	/* Capability deletion from cspace. 
 	 */
 	printf("\nTestCase : Delete Capability from Cspace.\n");
-	cap_delete(csp, slot_out);
+	cap_delete(csp, slot_out, NULL);
 
 	/*Lookup after deleting capability. It should Fail!!
 	 */
@@ -314,7 +314,7 @@ int get_cnode(struct cspace *csp, cptr_t sslot) {
 int do_revoke(struct cspace *csp, cptr_t sslot, struct cptr_cache *scache) {
 	int ret = 0;
 
-	ret = cap_revoke(csp, sslot);
+	ret = cap_revoke(csp, sslot, NULL);
 	if (ret < 0)
 		printf("Revoke failed\n");
 	cptr_free(scache, sslot);

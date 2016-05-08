@@ -374,7 +374,9 @@ struct cap_type_system* cap_cspace_get_type_system(struct cspace *cspace);
  *
  * If the slot is already occupied, or @c is invalid, returns non-zero.
  */
-int cap_insert(struct cspace *cspace, cptr_t c, void *object, cap_type_t type, void *metadata);
+int cap_insert(struct cspace *cspace, cptr_t c, 
+               void *object, cap_type_t type, 
+               void *callback_payload);
 /**
  * cap_delete -- Deletes object data from cspace at cnode pointed at by c
  * @cspace: the cspace to delete capability from
@@ -391,7 +393,7 @@ int cap_insert(struct cspace *cspace, cptr_t c, void *object, cap_type_t type, v
  * If this is the last cnode that refers to the object, the
  * delete callback for the capability's type will be invoked.
  */
-void cap_delete(struct cspace *cspace, cptr_t c);
+void cap_delete(struct cspace *cspace, cptr_t c, void * callback_payload);
 
 /**
  * Add the cnode 'c_dest' in 'cspacedest' to the cnode 'c_src's CDT. This is 
@@ -399,7 +401,8 @@ void cap_delete(struct cspace *cspace, cptr_t c);
  * c_src's authority.
  */
 int cap_derive(struct cspace *cspacesrc, cptr_t c_src,
-               struct cspace *cspacedest, cptr_t c_dest);
+               struct cspace *cspacedest, cptr_t c_dest,
+               void * callback_payload);
 
 /**
  * cap_grant -- Grant capability from source to destination cspace
@@ -418,7 +421,7 @@ int cap_derive(struct cspace *cspacesrc, cptr_t c_src,
  */
 int cap_grant(struct cspace *cspacesrc, cptr_t c_src,
               struct cspace *cspacedst, cptr_t c_dst,
-              void *dst_metadata,
+              void *callback_payload,
               cap_type_t *type);
 
 /**
@@ -437,7 +440,7 @@ int cap_grant(struct cspace *cspacesrc, cptr_t c_src,
  * will be NULL'd out (so that when the slot is re-used in the future,
  * the metadata field will start out as NULL).
  */
-int cap_revoke(struct cspace *cspace, cptr_t c);
+int cap_revoke(struct cspace *cspace, cptr_t c, void * callback_payload);
 
 typedef bool (*cap_revoke_till_f)(struct cnode *);
 
@@ -445,7 +448,8 @@ typedef bool (*cap_revoke_till_f)(struct cnode *);
  * we reach a leaf node of the CDT. This allows for partial, revoke-like edits
  * to the CDT. Calling cap_revoke_till with a function that allways returns
  * false is equivalent to calling `cap_revoke` */
-int cap_revoke_till(struct cspace *cspace, cptr_t c, cap_revoke_till_f func);
+int cap_revoke_till(struct cspace *cspace, cptr_t c, cap_revoke_till_f func,
+                    void * callback_payload);
 
 /**
  * cap_cnode_get -- Return the cnode that this cptr points to in cspace
