@@ -1271,6 +1271,18 @@ int cap_derive(struct cspace *cspacesrc, cptr_t c_src,
                              "cap_derive", __cap_try_derive);
 }
 
+int cap_derive_cnode(struct cnode * ca, struct cnode *cb,
+                     void * callback_payload) {
+    int ret = 0;
+    while (! ret) {
+        ret = __cap_try_derive(ca, cb, NULL, callback_payload);
+        if (ret < 0) { return ret; }
+    }
+    return 0;
+}
+
+
+
 int cap_grant(struct cspace *cspacesrc, cptr_t c_src,
 			  struct cspace *cspacedst, cptr_t c_dst,
               void * callback_payload,
@@ -1284,6 +1296,14 @@ void cap_delete(struct cspace *cspace, cptr_t c, void * callback_payload) {
     __cap_cnode_unop(cspace, c, NULL, callback_payload, "cap_delete", __cap_try_delete);
 }
 
+void cap_delete_cnode(struct cnode * cnode, void * callback_payload) {
+    int ret = 0;
+    while (! ret) {
+        ret = __cap_try_delete(cnode, NULL, callback_payload);
+        if (ret < 0) { return; }
+    }
+}
+
 static bool __always_false(__attribute__((unused)) struct cnode *cnode) {
 	return false;
 }
@@ -1295,11 +1315,30 @@ int cap_revoke(struct cspace *cspace, cptr_t c, void * callback_payload) {
                             "cap_revoke", __cap_try_revoke);
 }
 
+int cap_revoke_cnode(struct cnode * cnode, void * callback_payload) {
+    int ret = 0;
+    while (! ret) {
+        ret = __cap_try_revoke(cnode, (void *) __always_false, callback_payload);
+        if (ret < 0) { return ret; }
+    }
+    return 0;
+}
+
 int cap_revoke_till(struct cspace *cspace, cptr_t c, cap_revoke_till_f func, 
                     void * callback_payload) {
 	return __cap_cnode_unop(cspace, c, 
                             (void *) func, callback_payload,
                             "cap_revoke_till", __cap_try_revoke);
+}
+
+int cap_revoke_till_cnode(struct cnode * cnode, cap_revoke_till_f func, 
+                          void * callback_payload) {
+    int ret = 0;
+    while (! ret) {
+        ret = __cap_try_revoke(cnode, (void *) func, callback_payload);
+        if (ret < 0) { return ret; }
+    }
+    return 0;
 }
 
 static void __cap_cnode_tear_down(struct cnode *cnode, struct cspace *cspace)

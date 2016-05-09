@@ -377,6 +377,7 @@ struct cap_type_system* cap_cspace_get_type_system(struct cspace *cspace);
 int cap_insert(struct cspace *cspace, cptr_t c, 
                void *object, cap_type_t type, 
                void *callback_payload);
+
 /**
  * cap_delete -- Deletes object data from cspace at cnode pointed at by c
  * @cspace: the cspace to delete capability from
@@ -394,6 +395,7 @@ int cap_insert(struct cspace *cspace, cptr_t c,
  * delete callback for the capability's type will be invoked.
  */
 void cap_delete(struct cspace *cspace, cptr_t c, void * callback_payload);
+void cap_delete_cnode(struct cnode *cnode, void * callback_payload);
 
 /**
  * Add the cnode 'c_dest' in 'cspacedest' to the cnode 'c_src's CDT. This is 
@@ -403,6 +405,8 @@ void cap_delete(struct cspace *cspace, cptr_t c, void * callback_payload);
 int cap_derive(struct cspace *cspacesrc, cptr_t c_src,
                struct cspace *cspacedest, cptr_t c_dest,
                void * callback_payload);
+int cap_derive_cnode(struct cnode * ca, struct cnode *cb, 
+                     void * callback_payload);
 
 /**
  * cap_grant -- Grant capability from source to destination cspace
@@ -441,6 +445,7 @@ int cap_grant(struct cspace *cspacesrc, cptr_t c_src,
  * the metadata field will start out as NULL).
  */
 int cap_revoke(struct cspace *cspace, cptr_t c, void * callback_payload);
+int cap_revoke_cnode(struct cnode * cnode, void * callback_payload);
 
 typedef bool (*cap_revoke_till_f)(struct cnode *);
 
@@ -450,6 +455,8 @@ typedef bool (*cap_revoke_till_f)(struct cnode *);
  * false is equivalent to calling `cap_revoke` */
 int cap_revoke_till(struct cspace *cspace, cptr_t c, cap_revoke_till_f func,
                     void * callback_payload);
+int cap_reovke_till_cnode(struct cnode * cnode, cap_revoke_till_f func,
+                          void * callback_payload);
 
 /**
  * cap_cnode_get -- Return the cnode that this cptr points to in cspace
