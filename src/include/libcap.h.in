@@ -428,6 +428,11 @@ int cap_grant(struct cspace *cspacesrc, cptr_t c_src,
               void *callback_payload,
               cap_type_t *type);
 
+int cap_grant_cnode(struct cnode * ca,
+                    struct cspace * cspacedst, cptr_t c_dst,
+                    void * callback_payload,
+                    cap_type_t *type);
+
 /**
  * cap_revoke -- Equivalent to calling cap_delete on all of the capability's 
  *               children

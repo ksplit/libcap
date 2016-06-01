@@ -1209,6 +1209,7 @@ int __cap_cnode_binop(struct cspace *cspace_src, cptr_t c_src,
  * cptr. The protocol for this function is described in the comment
  * above __cap_cnode_binop. 'op_name' is used for error messages. */
 int __cap_cnode_unop(struct cspace *cspace, cptr_t c,
+                     bool alloc,
                      void * extra,
                      void * callback_payload,
                      char * op_name,
@@ -1229,7 +1230,7 @@ int __cap_cnode_unop(struct cspace *cspace, cptr_t c,
 	 * cnode and keep trying until we can lock the cdt that contains it.
 	 */
 	do {
-		ret = cap_cnode_get(cspace, c, &cnode);
+		ret = __cap_cnode_get(cspace, c, alloc, &cnode);
 		if (ret) {
 			CAP_ERR("couldn't get cnode");
 			goto fail1;
@@ -1281,8 +1282,6 @@ int cap_derive_cnode(struct cnode * ca, struct cnode *cb,
     return 0;
 }
 
-
-
 int cap_grant(struct cspace *cspacesrc, cptr_t c_src,
 			  struct cspace *cspacedst, cptr_t c_dst,
               void * callback_payload,
@@ -1292,8 +1291,37 @@ int cap_grant(struct cspace *cspacesrc, cptr_t c_src,
                              "cap_grant", __cap_try_grant);
 }
 
+struct __cap_grant_unop_adapter_extra {
+    void * orig_extra;
+    struct cnode * src_cnode;
+};
+
+/* adapter that pulls the src_cnode out of the "extra" arguments from the
+ * cap_grant_cnode callback. */
+static int __cap_grant_unop_adapter(struct cnode * dst_cnode, void * _extra, void * payload) {
+    struct __cap_grant_unop_adapter_extra * extra = 
+        (struct __cap_grant_unop_adapter_extra *) _extra;
+    return __cap_try_grant(extra->src_cnode, dst_cnode, extra->orig_extra, payload);
+}
+
+/* This should be an OK implementation since we've already locked the source
+ * cnode and the dest cnode should be unused. */
+int cap_grant_cnode(struct cnode * ca,
+                    struct cspace * cspacedst, cptr_t c_dst,
+                    void * callback_payload,
+                    cap_type_t *type) {
+    struct __cap_grant_unop_adapter_extra extra = {
+        .orig_extra = (void *) type,
+        .src_cnode = ca
+    };
+    return __cap_cnode_unop(cspacedst, c_dst, 
+                            true, (void *) &extra, callback_payload, 
+                            "cap_grant_cnode",
+                            __cap_grant_unop_adapter);
+}
+
 void cap_delete(struct cspace *cspace, cptr_t c, void * callback_payload) {
-    __cap_cnode_unop(cspace, c, NULL, callback_payload, "cap_delete", __cap_try_delete);
+    __cap_cnode_unop(cspace, c, false, NULL, callback_payload, "cap_delete", __cap_try_delete);
 }
 
 void cap_delete_cnode(struct cnode * cnode, void * callback_payload) {
@@ -1310,7 +1338,7 @@ static bool __always_false(__attribute__((unused)) struct cnode *cnode) {
 
 int cap_revoke(struct cspace *cspace, cptr_t c, void * callback_payload) {
     CAP_MSG("Doing real cap revoke\n");
-	return __cap_cnode_unop(cspace, c, 
+	return __cap_cnode_unop(cspace, c, false,
                             (void *) __always_false, callback_payload,
                             "cap_revoke", __cap_try_revoke);
 }
@@ -1326,7 +1354,7 @@ int cap_revoke_cnode(struct cnode * cnode, void * callback_payload) {
 
 int cap_revoke_till(struct cspace *cspace, cptr_t c, cap_revoke_till_f func, 
                     void * callback_payload) {
-	return __cap_cnode_unop(cspace, c, 
+	return __cap_cnode_unop(cspace, c, false,
                             (void *) func, callback_payload,
                             "cap_revoke_till", __cap_try_revoke);
 }
