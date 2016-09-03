@@ -988,9 +988,14 @@ static int __cap_try_delete(struct cnode *cnode,
 	return 1;
 }
 
-static int __cap_try_revoke(struct cnode *cnode, void * till_func_, void * callback_payload)
+struct __cap_try_revoke_args {
+    cap_revoke_till_f till_f;
+    void * till_f_payload;
+};
+
+static int __cap_try_revoke(struct cnode *cnode, void * _args, void * callback_payload)
 {
-	cap_revoke_till_f till_func = (cap_revoke_till_f) till_func_;
+    struct __cap_try_revoke_args * args = (struct __cap_try_revoke_args *) _args;
     if (! __cap_cnode_is_used(cnode)) {
         CAP_ERR("bad cnode, type = %d", cnode->type);
         return -EINVAL;
@@ -1031,7 +1036,7 @@ static int __cap_try_revoke(struct cnode *cnode, void * till_func_, void * callb
 	 */
 
     /* Note: This should do a depth-first traversal of the nodes, skipping any
-     * sub-trees that `till_func` tells us to skip. */
+     * sub-trees that our `till_f` function tells us to skip. */
 
     struct list_head * cur = cnode->children.next;
     struct list_head * next = cur->next;
@@ -1057,7 +1062,7 @@ static int __cap_try_revoke(struct cnode *cnode, void * till_func_, void * callb
 		 */
 		CAP_BUG_ON(!__cap_cnode_is_used(child));
 
-		if (till_func(child)) {
+		if (args->till_f(child, args->till_f_payload)) {
 			goto next_child;
 		}
 
@@ -1332,38 +1337,57 @@ void cap_delete_cnode(struct cnode * cnode, void * callback_payload) {
     }
 }
 
-static bool __always_false(__attribute__((unused)) struct cnode *cnode) {
+static bool __always_false(__attribute__((unused)) struct cnode *cnode,
+                           __attribute__((unused)) void * payload) {
 	return false;
 }
 
 int cap_revoke(struct cspace *cspace, cptr_t c, void * callback_payload) {
     CAP_MSG("Doing real cap revoke\n");
+    struct __cap_try_revoke_args revoke_args = {
+        .till_f = __always_false,
+        .till_f_payload = NULL,
+    };
 	return __cap_cnode_unop(cspace, c, false,
-                            (void *) __always_false, callback_payload,
+                            (void *) &revoke_args, callback_payload,
                             "cap_revoke", __cap_try_revoke);
 }
 
 int cap_revoke_cnode(struct cnode * cnode, void * callback_payload) {
+    struct __cap_try_revoke_args revoke_args = {
+        .till_f = __always_false,
+        .till_f_payload = NULL,
+    };
+
     int ret = 0;
     while (! ret) {
-        ret = __cap_try_revoke(cnode, (void *) __always_false, callback_payload);
+        ret = __cap_try_revoke(cnode, (void *) &revoke_args, callback_payload);
         if (ret < 0) { return ret; }
     }
     return 0;
 }
 
+
 int cap_revoke_till(struct cspace *cspace, cptr_t c, cap_revoke_till_f func, 
-                    void * callback_payload) {
+                    void * callback_payload, void * till_f_payload) {
+    struct __cap_try_revoke_args revoke_args = {
+        .till_f = func,
+        .till_f_payload = till_f_payload
+    };
 	return __cap_cnode_unop(cspace, c, false,
-                            (void *) func, callback_payload,
+                            (void *) &revoke_args, callback_payload,
                             "cap_revoke_till", __cap_try_revoke);
 }
 
 int cap_revoke_till_cnode(struct cnode * cnode, cap_revoke_till_f func, 
-                          void * callback_payload) {
+                          void * callback_payload, void * till_f_payload) {
     int ret = 0;
+    struct __cap_try_revoke_args revoke_args = {
+        .till_f = func,
+        .till_f_payload = till_f_payload
+    };
     while (! ret) {
-        ret = __cap_try_revoke(cnode, (void *) func, callback_payload);
+        ret = __cap_try_revoke(cnode, (void *) &revoke_args, callback_payload);
         if (ret < 0) { return ret; }
     }
     return 0;

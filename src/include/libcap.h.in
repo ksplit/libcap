@@ -452,16 +452,16 @@ int cap_grant_cnode(struct cnode * ca,
 int cap_revoke(struct cspace *cspace, cptr_t c, void * callback_payload);
 int cap_revoke_cnode(struct cnode * cnode, void * callback_payload);
 
-typedef bool (*cap_revoke_till_f)(struct cnode *);
+typedef bool (*cap_revoke_till_f)(struct cnode *, void * payload);
 
 /* Continues revoking down each path of the CDT until 'func' returns true, or
  * we reach a leaf node of the CDT. This allows for partial, revoke-like edits
  * to the CDT. Calling cap_revoke_till with a function that allways returns
  * false is equivalent to calling `cap_revoke` */
 int cap_revoke_till(struct cspace *cspace, cptr_t c, cap_revoke_till_f func,
-                    void * callback_payload);
+                    void * callback_payload, void * till_f_payload);
 int cap_reovke_till_cnode(struct cnode * cnode, cap_revoke_till_f func,
-                          void * callback_payload);
+                          void * callback_payload, void * till_f_payload);
 
 /**
  * cap_cnode_get -- Return the cnode that this cptr points to in cspace
