@@ -460,7 +460,7 @@ typedef bool (*cap_revoke_till_f)(struct cnode *, void * payload);
  * false is equivalent to calling `cap_revoke` */
 int cap_revoke_till(struct cspace *cspace, cptr_t c, cap_revoke_till_f func,
                     void * callback_payload, void * till_f_payload);
-int cap_reovke_till_cnode(struct cnode * cnode, cap_revoke_till_f func,
+int cap_revoke_till_cnode(struct cnode * cnode, cap_revoke_till_f func,
                           void * callback_payload, void * till_f_payload);
 
 /**
