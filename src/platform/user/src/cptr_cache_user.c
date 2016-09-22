@@ -10,7 +10,7 @@ int __l1_cache_size;
 #ifdef __aarch64__
 static __always_inline int __get_l1_cache_size(int *size, int *line) {
 	if (size)
-		*size = 32078;
+		*size = 32768;
 	if (line)
 		*line = 64;
 	return 0;
