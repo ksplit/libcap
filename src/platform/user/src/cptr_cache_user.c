@@ -7,6 +7,15 @@ int __cache_lines;
 int __cache_line_size;
 int __l1_cache_size;
 
+#ifdef __aarch64__
+static __always_inline int __get_l1_cache_size(int *size, int *line) {
+	if (size)
+		*size = 32078;
+	if (line)
+		*line = 64;
+	return 0;
+}
+#else
 #define cpuid(func,ax,bx,cx,dx)                                         \
     __asm__ __volatile__ ("cpuid":                                      \
                           "=a" (ax), "=b" (bx), "=c" (cx), "=d" (dx) : "a" (func), "b" (bx), "c" (cx), "d" (dx));
@@ -40,6 +49,7 @@ static int __get_l1_cache_size(int *size, int *line)
 
 	return 0;
 }
+#endif
 
 int __cptr_init(void)
 {

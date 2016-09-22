@@ -178,6 +178,13 @@ static inline void __cap_clear_bit(int nr, volatile unsigned long *addr)
         _min1 < _min2 ? _min1 : _min2; })
 #endif
 
+#ifdef __aarch64__
+static __always_inline unsigned long __ffs(unsigned long word)
+{
+	return __builtin_ctzl(word);
+}
+#define ffz(x)  __ffs(~(x))
+#else
 static inline unsigned long ffz(unsigned long word)
 {
 	asm("rep; bsf %1,%0"
@@ -185,6 +192,7 @@ static inline unsigned long ffz(unsigned long word)
 		: "r"(~word));
 	return word;
 }
+#endif
 
 static unsigned long find_first_zero_bit(const unsigned long *addr,
 					 unsigned long size)
