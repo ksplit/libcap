@@ -359,6 +359,7 @@ void* cap_cspace_owner(struct cspace *cspace);
  * @cspace: the cspace
  */
 struct cap_type_system* cap_cspace_get_type_system(struct cspace *cspace);
+
 /**
  * cap_insert -- Inserts object data into cspace at cnode pointed at by c
  * @cspace: the cspace to insert the object into
@@ -484,6 +485,14 @@ int cap_cnode_get(struct cspace *cspace, cptr_t cptr, struct cnode **cnode);
  * Call this on every cnode you've called cap_cnode_get on.
  */
 void cap_cnode_put(struct cnode *cnode);
+
+/**
+ * cap_cnode_dump_cdt. Print the CDT assuming this cnode is the root. Assumes
+ * that no other threads are trying to mess with the cnodes in the CDT while
+ * printing.
+ */
+void cap_cnode_dump_cdt_unsafe(struct cnode * cnode);
+
 /**
  * cap_cnode_object -- Get the object stored at this cnode.
  */

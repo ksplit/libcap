@@ -1393,6 +1393,49 @@ int cap_revoke_till_cnode(struct cnode * cnode, cap_revoke_till_f func,
     return 0;
 }
 
+static void cap_cnode_dump_cdt_child(struct cnode * cnode, int depth) {
+    char * space = cap_zalloc(1, (depth * 2) + 1);
+    if (space == NULL) {
+        CAP_ERR("Couldn't dump cdt, failed to alloc memory");
+        return;
+    }
+    memset(space, ' ', (depth * 2));
+    space[(depth * 2)] = '\0';
+    CAP_MSG("%s(cptr (cspace %p) %#0lx)\n", space, cap_cnode_cspace((cnode)), cap_cnode_cptr((cnode)));
+    cap_free(space);
+
+	struct cnode *child;
+    struct list_head * cur;
+
+    /* The tree lists are circular, so keep traversing the 'children' list
+     * until we reach the root again. */
+    list_for_each(cur, &cnode->children) {
+        child = list_entry(cur, struct cnode, siblings);
+
+        /* We need to update the cdt_root of this child before we call
+         * cap_cdt_remove_no_unlock because we never called
+         * __cap_cnode_try_acquire_cdt_root. We also have to call fixup to
+         * make sure intermediate root node's reference counts are updated
+         * properly. */
+        int ret = __cap_cnode_fixup_cdt_root_trusted_root(cnode->cdt_root, child);
+        CAP_BUG_ON(ret && "interrupted on fixup");
+
+        cap_cnode_dump_cdt_child(child, depth + 1);
+	}
+}
+
+void cap_cnode_dump_cdt_unsafe(struct cnode * cnode) {
+
+    while (true) { 
+        int res = __cap_cnode_try_acquire_cdt_root(cnode);
+        if (res) { break; }
+    }
+
+    cap_cnode_dump_cdt_child(cnode, 0);
+
+    __cap_cnode_release_cdt_root(cnode);
+}
+
 static void __cap_cnode_tear_down(struct cnode *cnode, struct cspace *cspace)
 {
 
