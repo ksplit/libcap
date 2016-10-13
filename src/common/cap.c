@@ -1040,13 +1040,13 @@ static int __cap_try_revoke(struct cnode *cnode, void * _args, void * callback_p
     /* Note: This should do a depth-first traversal of the nodes, skipping any
      * sub-trees that our `till_f` function tells us to skip. */
 
-    struct list_head * cur = cnode->children.next;
-    struct list_head * next = cur->next;
+    struct list_head * prev = &cnode->children;
+    struct list_head * cur = prev->next;
     /* The tree lists are circular, so keep traversing the 'children' list
      * until we reach the root again. We have to save the "next" ptr before
      * we actually loop because 'cur' will become invalid if it gets removed
      * from the tree. */
-    for (; &cnode->children != cur; cur = next, next = cur->next) {
+    for (; cur != &cnode->children; cur = prev->next) {
         child = list_entry(cur, struct cnode, siblings);
 
 		/*
@@ -1065,6 +1065,12 @@ static int __cap_try_revoke(struct cnode *cnode, void * _args, void * callback_p
 		CAP_BUG_ON(!__cap_cnode_is_used(child));
 
 		if (args->till_f(child, args->till_f_payload)) {
+            CAP_MSG("Skipping revoke on %#0lx because of till_f\n", 
+                    cptr_val(cap_cnode_cptr(child)));
+            /* This node is guarnteed to be in the output tree, so save it
+             * as the new "prev" */
+            prev = cur;
+
 			goto next_child;
 		}
 
@@ -1083,6 +1089,10 @@ static int __cap_try_revoke(struct cnode *cnode, void * _args, void * callback_p
 		 * Delete from cdt. Don't drop the CDT lock.
 		 */
         __cap_cdt_remove_no_unlock(child);
+
+        /* If we remove a node, it may have spliced its children in before our
+         * next. So, re-start the traversal from the "next" of the previous node.
+         * This case is handled implicitly via the post condition of the for loop. */
 
 		/*
 		 * Update microkernel state to reflect rights change 
