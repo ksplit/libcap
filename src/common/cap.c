@@ -1253,7 +1253,6 @@ int __cap_cnode_unop(struct cspace *cspace, cptr_t c,
 			goto fail1;
 		}
 
-        CAP_MSG("Extra on real cap msg: %p\n", extra);
         /* Do the op, if we get a fail code, exit the loop. */
         ret = op(cnode, extra, callback_payload);
         if (ret < 0) { goto fail2; }
@@ -1355,7 +1354,6 @@ static bool __always_false(__attribute__((unused)) struct cnode *cnode,
 }
 
 int cap_revoke(struct cspace *cspace, cptr_t c, void * callback_payload) {
-    CAP_MSG("Doing real cap revoke\n");
     struct __cap_try_revoke_args revoke_args = {
         .till_f = __always_false,
         .till_f_payload = NULL,
