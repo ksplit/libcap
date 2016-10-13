@@ -826,9 +826,15 @@ static int __cap_try_derive(struct cnode *src, struct cnode *dst,
         goto fail;
     }
 
-    if (!__cap_cnode_try_acquire_cdt_root(src)) { goto fail3; }
-    if (!__cap_cnode_try_acquire_cdt_root(dst)) { goto fail2; }
+    if (!__cap_cnode_try_acquire_cdt_root(src)) { 
+        CAP_ERR("Couldn't lock source CDT");
+        goto fail3; 
+    }
 
+    if (!__cap_cnode_try_acquire_cdt_root(dst)) { 
+        CAP_ERR("Couldn't lock dest CDT");
+        goto fail2;
+    }
 
     if (!__cap_cnode_is_root(dst)) { 
         ret = -EINVAL; 
@@ -836,8 +842,8 @@ static int __cap_try_derive(struct cnode *src, struct cnode *dst,
         goto fail; 
     }
 
-    /* None of the effects we do below are externally observable, so it's OK
-     * to do this here. */
+    /* None of the effects we do below are externally observable from the cnode, 
+     * so it's OK to do this here. */
     ret = __cap_notify_derive(src, dst, callback_payload);
     if (ret < 0) {
         goto fail;
@@ -846,11 +852,7 @@ static int __cap_try_derive(struct cnode *src, struct cnode *dst,
 	/*
 	 * Add dest cnode to source's children in cdt
 	 */
-	list_add(&dst->siblings, &src->children);
-
-    /* Add all of our siblings to the the children list of our new (src)
-     * parent */
-	list_splice_init(&src->children, &dst->siblings);
+    list_move(&dst->siblings, &src->children);
 
     /* Note that cdt_root is now a sub-root for our children and siblings. */
     dst->cdt_root->parent = src->cdt_root;
