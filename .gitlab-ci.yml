@@ -1,4 +1,5 @@
-testing:
+testing-ubuntu16:
+  image: gitlab.flux.utah.edu:4567/tcloud/capnet:ubuntu16
   script:
   - ./autogen.sh
   - mkdir build install
