@@ -1,4 +1,4 @@
-testing-ubuntu16:
+build-ubuntu16:
   image: gitlab.flux.utah.edu:4567/tcloud/capnet:ubuntu16
   script:
   - ./autogen.sh
@@ -7,5 +7,8 @@ testing-ubuntu16:
   - ../configure --prefix=`readlink -f ../install` --enable-test-build
   - make
   - make install
+  artifacts:
+    paths:
+    - install/
   only:
   - master
