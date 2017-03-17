@@ -25,7 +25,7 @@
  * We wrap it inside a struct def so that the compiler will do strong
  * type checking.
  */
-typedef struct {
+typedef struct cptr {
 	unsigned long cptr;
 } cptr_t;
 
