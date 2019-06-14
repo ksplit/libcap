@@ -58,9 +58,9 @@ AC_SUBST(PLATFORM_DIR)
 
 # CSpace depth. We use bits to enforce that the depth is a power of 2.
 AC_ARG_VAR([CSPACE_DEPTH_BITS],
-    [Set CSPACE depth to 2^CSPACE_DEPTH_BITS (default=2, default depth=4)])
+    [Set CSPACE depth to 2^CSPACE_DEPTH_BITS (default=3, default depth=8)])
 AS_IF([test "x$CSPACE_DEPTH_BITS" = "x"],
-    [CSPACE_DEPTH_BITS="2"]) # default
+    [CSPACE_DEPTH_BITS="3"]) # default
 AS_CASE([$CSPACE_DEPTH_BITS],
 
     [@<:@0-8@:>@],

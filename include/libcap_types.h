@@ -24,7 +24,7 @@
  * The depth must be at least 1 and a power of 2, since there is always at 
  * least one root level.
  */
-#define CAP_CSPACE_DEPTH_BITS 2
+#define CAP_CSPACE_DEPTH_BITS 3
 #define CAP_CSPACE_DEPTH (1 << CAP_CSPACE_DEPTH_BITS)
 
 #if (CAP_CSPACE_DEPTH < 1)
@@ -78,6 +78,17 @@
 #define CAP_EXP_1(a) ((a) * CAP_EXP_0(a))
 #define CAP_EXP_2(a) ((a) * CAP_EXP_1(a))
 #define CAP_EXP_3(a) ((a) * CAP_EXP_2(a))
+#define CAP_CSPACE_SLOTS_IN_LEVEL(lvl) \
+	CAP_EXP_ ## lvl(CAP_CSPACE_CNODE_TABLE_SIZE/2)
+#elif (CAP_CSPACE_DEPTH == 8)
+#define CAP_EXP_0(a) (a)
+#define CAP_EXP_1(a) ((a) * CAP_EXP_0(a))
+#define CAP_EXP_2(a) ((a) * CAP_EXP_1(a))
+#define CAP_EXP_3(a) ((a) * CAP_EXP_2(a))
+#define CAP_EXP_4(a) ((a) * CAP_EXP_3(a))
+#define CAP_EXP_5(a) ((a) * CAP_EXP_4(a))
+#define CAP_EXP_6(a) ((a) * CAP_EXP_5(a))
+#define CAP_EXP_7(a) ((a) * CAP_EXP_6(a))
 #define CAP_CSPACE_SLOTS_IN_LEVEL(lvl) \
 	CAP_EXP_ ## lvl(CAP_CSPACE_CNODE_TABLE_SIZE/2)
 #else
