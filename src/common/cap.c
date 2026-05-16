@@ -118,7 +118,7 @@ cap_register_type(cap_type_t type, const struct cap_type_ops *ops)
 /**
  * Allocates a new cdt root node using the cdt cache.
  */
-struct cdt_root_node *
+static struct cdt_root_node *
 LIBCAP_FUNC_ATTR
 get_cdt_root(void)
 {
@@ -139,7 +139,7 @@ get_cdt_root(void)
 	return cdt_node;
 }
 
-void 
+static void
 LIBCAP_FUNC_ATTR
 free_cdt_root(struct cdt_root_node *cdt_node)
 {

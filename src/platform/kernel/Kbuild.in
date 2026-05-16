@@ -1,9 +1,18 @@
 
 # @CAP_AUTOCONF_NOTICE@
 
-# Build libcap as static library. Unfortunately, the name of the
-# library is hard-coded in the kernel build system to be lib.a. (We
-# have an extra build step that cp's lib.a -> libcap.a.)
+# Build libcap's source files via kbuild so they're ABI-compatible with
+# the kernel they'll be linked into.
+#
+# Historical note: this Kbuild used to declare `lib-y += $(COMMON_SRCS:.c=.o)`
+# and kbuild produced lib.a (which an automake step renamed to libcap.a).
+# Modern kbuild (>= ~v6.x) only honors lib-y for in-tree builds; for
+# external (M=...) builds nothing gets compiled. Instead, declare a
+# module so kbuild actually walks the source list and emits each .o
+# in place. Downstream consumers either pick up the individual .o
+# files directly, or assemble them into libcap.a via `ar` (see
+# Makefile.am: all-lib-cp). The libcap.ko produced by kbuild itself is
+# an unused side product.
 
 # Note: Kernel expects the files to be relative paths (it always prepends
 # the current directory).
@@ -17,9 +26,10 @@ src = @abs_top_srcdir@/src
 # otherwise.
 export CC=@CC@
 
-# Sources that make up library
-lib-y += \
-	$(COMMON_SRCS:.c=.o)
+# Declare libcap.o as a module so kbuild compiles the constituent
+# objects in external (M=) builds.
+obj-m += libcap.o
+libcap-y += $(COMMON_SRCS:.c=.o)
 
 # Pass along include directories from the Automake file
 ccflags-y += $(CFLAGS) $(AM_CPPFLAGS)

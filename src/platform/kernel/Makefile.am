@@ -51,11 +51,34 @@ all: all-lib-cp $(MAYBE_ALL_MODULE)
 all-module: all-lib-cp
 	$(MAKE) -C $(KDIR) M=$(LIBCAP_KERNEL_MODULE_KBUILD) modules
 
+# Modern kbuild does not produce lib.a for external (M=) builds, so
+# assemble libcap.a from the individual .o files kbuild emitted.
 all-lib-cp: all-lib
-	cp $(LIBCAP_KBUILD)/lib.a $(LIBCAP_KBUILD)/libcap.a
+	cd $(LIBCAP_KBUILD) && ar rcs libcap.a $(COMMON_SRCS:.c=.o)
 
+# Modern kbuild's obj-m source lookups don't honor the `src =`
+# override in Kbuild (it worked for the old lib-y approach), so for
+# out-of-tree builds we have to make sources reachable from the M=
+# directory. Symlink the .c files into the build dir before invoking
+# kbuild.
+#
+# We ignore kbuild's exit status (leading `-`) because modpost runs
+# at the end and complains about the unused libcap.ko (missing
+# MODULE_LICENSE, undefined symbols that get resolved when libcap is
+# linked into a consumer like lcd_domains.ko). We only care about the
+# individual .o files, so we explicitly verify those after the build.
 all-lib:
-	$(MAKE) -C $(KDIR) M=$(LIBCAP_KBUILD)
+	@for src in $(COMMON_SRCS); do \
+		mkdir -p $(LIBCAP_KBUILD)/$$(dirname $$src); \
+		ln -sf $(abs_top_srcdir)/src/$$src $(LIBCAP_KBUILD)/$$src; \
+	done
+	-$(MAKE) -C $(KDIR) M=$(LIBCAP_KBUILD)
+	@for o in $(COMMON_SRCS:.c=.o); do \
+		test -f $(LIBCAP_KBUILD)/$$o || { \
+			echo "libcap: kbuild did not produce $(LIBCAP_KBUILD)/$$o" >&2; \
+			exit 1; \
+		}; \
+	done
 
 # Move libcap.a and libcap.ko into dest dir. Easier to chain with
 # multiple targets (esp. since we may not have built the module)
