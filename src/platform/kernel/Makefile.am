@@ -72,6 +72,12 @@ all-lib:
 		mkdir -p $(LIBCAP_KBUILD)/$$(dirname $$src); \
 		ln -sf $(abs_top_srcdir)/src/$$src $(LIBCAP_KBUILD)/$$src; \
 	done
+	@# Ensure internal headers are reachable by the kernel kbuild sub-make.
+	@# AM_CPPFLAGS may not propagate through kernel make's environment, so
+	@# append the include flags directly into the generated Kbuild file.
+	@grep -q 'libcap_internal_include' $(LIBCAP_KBUILD)/Kbuild 2>/dev/null || \
+		echo 'ccflags-y += -I$(abs_top_srcdir)/src/include -I$(abs_top_builddir)/src/include -I$(abs_top_srcdir)/src/platform/kernel/include -I$(abs_top_builddir) # libcap_internal_include' \
+		>> $(LIBCAP_KBUILD)/Kbuild
 	-$(MAKE) -C $(KDIR) M=$(LIBCAP_KBUILD)
 	@for o in $(COMMON_SRCS:.c=.o); do \
 		test -f $(LIBCAP_KBUILD)/$$o || { \
