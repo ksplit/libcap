@@ -33,6 +33,12 @@ libcap-y += $(COMMON_SRCS:.c=.o)
 
 # Pass along include directories from the Automake file
 ccflags-y += $(CFLAGS) $(AM_CPPFLAGS)
+# Explicit include paths so the kernel kbuild sub-make can find libcap_internal.h
+# even when AM_CPPFLAGS is not propagated through the kernel make environment.
+ccflags-y += -I@abs_top_srcdir@/src/include \
+             -I@abs_top_builddir@/src/include \
+             -I@abs_top_srcdir@/src/platform/kernel/include \
+             -I@abs_top_builddir@
 
 # Provide option to filter out some kbuild cflags (this is needed for
 # clang builds).
