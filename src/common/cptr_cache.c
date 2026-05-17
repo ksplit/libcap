@@ -193,7 +193,8 @@ cptr_free(struct cptr_cache *cptr_cache, cptr_t c)
 
 /* These are required for kernel land, so that if we install libcap
  * as a kernel module, other kernel code can link with it. */
-EXPORT_SYMBOL(cap_cptr_cache_bmap_for_level);
+/* cap_cptr_cache_bmap_for_level is static inline in the header — it cannot be
+ * exported as a symbol (there is no out-of-line definition). Symbol removed. */
 EXPORT_SYMBOL(cptr_cache_alloc);
 EXPORT_SYMBOL(cptr_cache_free);
 EXPORT_SYMBOL(cptr_cache_init);
