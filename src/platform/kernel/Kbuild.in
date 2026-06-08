@@ -43,3 +43,15 @@ ccflags-y += -I@abs_top_srcdir@/src/include \
 # Provide option to filter out some kbuild cflags (this is needed for
 # clang builds).
 KBUILD_CFLAGS := $(filter-out $(LIBCAP_BAD_CFLAGS), $(KBUILD_CFLAGS))
+
+# libcap is linked into the LPD's .ko. Strip kernel diagnostic
+# instrumentation so the LPD doesn't drag in __fentry__ / UBSAN /
+# stack-protector references from libcap objects. Matches the
+# corresponding block in lcd-domains/scripts/Kbuild.liblcd.
+ccflags-remove-y += $(CC_FLAGS_FTRACE)
+ccflags-y        += -fno-stack-protector
+KASAN_SANITIZE   := n
+UBSAN_SANITIZE   := n
+KCSAN_SANITIZE   := n
+KCOV_INSTRUMENT  := n
+GCOV_PROFILE     := n
