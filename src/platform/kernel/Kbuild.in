@@ -30,6 +30,7 @@ export CC=@CC@
 # objects in external (M=) builds.
 obj-m += libcap.o
 libcap-y += $(COMMON_SRCS:.c=.o)
+libcap-y += platform/kernel/module/main.o
 
 # Pass along include directories from the Automake file
 ccflags-y += $(CFLAGS) $(AM_CPPFLAGS)
@@ -43,6 +44,12 @@ ccflags-y += -I@abs_top_srcdir@/src/include \
 # Provide option to filter out some kbuild cflags (this is needed for
 # clang builds).
 KBUILD_CFLAGS := $(filter-out $(LIBCAP_BAD_CFLAGS), $(KBUILD_CFLAGS))
+
+# Strip stale retpoline/rethunk flags — same reason as Kbuild.microkernel.
+KBUILD_CFLAGS := $(filter-out -mindirect-branch=thunk-extern,$(KBUILD_CFLAGS))
+KBUILD_CFLAGS := $(filter-out -mindirect-branch-register,$(KBUILD_CFLAGS))
+KBUILD_CFLAGS := $(filter-out -mindirect-branch-cs-prefix,$(KBUILD_CFLAGS))
+KBUILD_CFLAGS := $(filter-out -mfunction-return=thunk-extern,$(KBUILD_CFLAGS))
 
 # libcap is linked into the LPD's .ko. Strip kernel diagnostic
 # instrumentation so the LPD doesn't drag in __fentry__ / UBSAN /
