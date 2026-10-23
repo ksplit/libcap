@@ -57,7 +57,6 @@ KBUILD_CFLAGS := $(filter-out -mfunction-return=thunk-extern,$(KBUILD_CFLAGS))
 # corresponding block in lcd-domains/scripts/Kbuild.liblcd.
 ccflags-remove-y += $(CC_FLAGS_FTRACE)
 ccflags-y        += -fno-stack-protector
-KASAN_SANITIZE   := n
 UBSAN_SANITIZE   := n
 KCSAN_SANITIZE   := n
 KCOV_INSTRUMENT  := n
